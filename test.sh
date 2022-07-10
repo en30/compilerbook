@@ -25,4 +25,27 @@ assert 15 '5*(9-6)'
 assert 4 '(3+5)/2'
 assert 4 '-6+10'
 assert 5 '+10+(-5)'
+
+assert 1 '1 == 1'
+assert 0 '1 == 0'
+
+assert 0 '1 != 1'
+assert 1 '1 != 0'
+
+assert 0 '1 > 1'
+assert 1 '1 > 0'
+assert 0 '0 > 1'
+
+assert 1 '1 >= 1'
+assert 1 '1 >= 0'
+assert 0 '0 >= 1'
+
+assert 0 '1 < 1'
+assert 1 '0 < 1'
+assert 0 '1 < 0'
+
+assert 1 '1 <= 1'
+assert 1 '0 <= 1'
+assert 0 '1 <= 0'
+
 echo OK
