@@ -23,11 +23,12 @@ struct Token
   int len;
 };
 
-Token *new_token(TokenKind kind, Token *cur, char *str)
+Token *new_token(TokenKind kind, Token *cur, char *str, int len)
 {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   cur->next = tok;
   return tok;
 }
@@ -40,9 +41,9 @@ typedef enum
   ND_DIV,
   ND_NUM,
   ND_EQ,
-  ND_NEQ,
+  ND_NE,
   ND_LT,
-  ND_LEQ,
+  ND_LE,
 } NodeKind;
 
 typedef struct Node Node;
@@ -127,6 +128,11 @@ bool at_eof()
   return token->kind == TK_EOF;
 }
 
+bool startswith(char *p, char *q)
+{
+  return memcmp(p, q, strlen(q)) == 0;
+}
+
 Token *tokenize(char *p)
 {
   Token head;
@@ -141,33 +147,32 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (!strncmp(p, "<=", 2) || !strncmp(p, ">=", 2) || !strncmp(p, "==", 2) || !strncmp(p, "!=", 2))
+    if (startswith(p, "<=") || startswith(p, ">=") || startswith(p, "==") || startswith(p, "!="))
     {
-      cur = new_token(TK_RESERVED, cur, p);
-      p++;
-      p++;
-      cur->len = 2;
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
       continue;
     }
 
     if (strchr("+-*/()<>", *p))
     {
-      cur = new_token(TK_RESERVED, cur, p++);
-      cur->len = 1;
+      cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
 
     if (isdigit(*p))
     {
-      cur = new_token(TK_NUM, cur, p);
+      cur = new_token(TK_NUM, cur, p, 0);
+      char *q = p;
       cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
     error_at(p, "トークナイズできません");
   }
 
-  new_token(TK_EOF, cur, p);
+  new_token(TK_EOF, cur, p, 0);
   return head.next;
 }
 
@@ -203,7 +208,7 @@ Node *equality()
     if (consume("=="))
       node = new_node(ND_EQ, node, relational());
     else if (consume("!="))
-      node = new_node(ND_NEQ, node, relational());
+      node = new_node(ND_NE, node, relational());
     else
       return node;
   }
@@ -215,11 +220,11 @@ Node *relational()
   for (;;)
   {
     if (consume("<="))
-      node = new_node(ND_LEQ, node, add());
+      node = new_node(ND_LE, node, add());
     else if (consume("<"))
       node = new_node(ND_LT, node, add());
     else if (consume(">="))
-      node = new_node(ND_LEQ, add(), node);
+      node = new_node(ND_LE, add(), node);
     else if (consume(">"))
       node = new_node(ND_LT, add(), node);
     else
@@ -312,7 +317,7 @@ void gen(Node *node)
     printf("  sete al\n");
     printf("  movzb rax, al\n");
     break;
-  case ND_NEQ:
+  case ND_NE:
     printf("  cmp rax, rdi\n");
     printf("  setne al\n");
     printf("  movzb rax, al\n");
@@ -322,7 +327,7 @@ void gen(Node *node)
     printf("  setl al\n");
     printf("  movzb rax, al\n");
     break;
-  case ND_LEQ:
+  case ND_LE:
     printf("  cmp rax, rdi\n");
     printf("  setle al\n");
     printf("  movzb rax, al\n");
