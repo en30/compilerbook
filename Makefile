@@ -1,7 +1,12 @@
+CC=docker run -it --rm -v $(PWD):/9cc -w /9cc compilerbook cc
 CFLAGS=-std=c11 -g -static
+SRCS=$(wildcard *.c)
+OBJS=$(SRCS:.c=.o)
 
-9cc: 9cc.c
-	docker run -it --rm -v $(PWD):/9cc -w /9cc compilerbook $(CC) -o $@ $? $(LDFLAGS)
+9cc: $(OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(OBJS): 9cc.h
 
 test: 9cc
 	docker run -it --rm -v $(PWD):/9cc -w /9cc compilerbook ./test.sh
