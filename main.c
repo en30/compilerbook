@@ -8,8 +8,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  Token *token = tokenize(argv[1]);
-  Node *node = parse(argv[1], token);
-  codegen(node);
+  user_input = argv[1];
+  token = tokenize(argv[1]);
+  parse();
+  codegen();
   return 0;
 }

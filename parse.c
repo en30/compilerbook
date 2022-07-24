@@ -1,7 +1,7 @@
 #include "9cc.h"
 
-static Token *token;
-static char *user_input;
+Token *token;
+char *user_input;
 
 Token *new_token(TokenKind kind, Token *cur, char *str, int len)
 {
@@ -61,6 +61,15 @@ bool consume(char *op)
   return true;
 }
 
+Token *consume_ident()
+{
+  if (token->kind != TK_IDENT)
+    return NULL;
+  Token *orig = token;
+  token = token->next;
+  return orig;
+}
+
 void expect(char *op)
 {
   if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
@@ -108,9 +117,15 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (strchr("+-*/()<>", *p))
+    if (strchr("+-*/()<>;=", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if ('a' <= *p && *p <= 'z')
+    {
+      cur = new_token(TK_IDENT, cur, p++, 1);
       continue;
     }
 
@@ -131,15 +146,22 @@ Token *tokenize(char *p)
 }
 
 /*
-expr       = equality
+program    = stmt*
+stmt       = expr ";"
+expr       = assign
+assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = ("+" | "-")? primary
-primary    = num | "(" expr ")"
+primary    = num | ident | "(" expr ")"
 */
+Node *code[100];
+void program();
+Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
@@ -147,9 +169,32 @@ Node *mul();
 Node *unary();
 Node *primary();
 
+void program()
+{
+  int i = 0;
+  while (!at_eof())
+    code[i++] = stmt();
+  code[i] = NULL;
+}
+
+Node *stmt()
+{
+  Node *node = expr();
+  expect(";");
+  return node;
+}
+
 Node *expr()
 {
-  return equality();
+  return assign();
+}
+
+Node *assign()
+{
+  Node *node = equality();
+  if (consume("="))
+    node = new_node(ND_ASSIGN, node, assign());
+  return node;
 }
 
 Node *equality()
@@ -233,12 +278,20 @@ Node *primary()
     return node;
   }
 
+  Token *tok = consume_ident();
+  if (tok)
+  {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+  }
+
   return new_node_num(expect_number());
 }
 
-Node *parse(char *ui, Token *tok)
+void parse()
 {
-  token = tok;
-  user_input = ui;
-  return expr();
+  program();
+  return;
 }

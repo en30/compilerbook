@@ -8,6 +8,7 @@
 typedef enum
 {
   TK_RESERVED,
+  TK_IDENT,
   TK_NUM,
   TK_EOF,
 } TokenKind;
@@ -34,6 +35,8 @@ typedef enum
   ND_NE,
   ND_LT,
   ND_LE,
+  ND_ASSIGN,
+  ND_LVAR,
 } NodeKind;
 
 typedef struct Node Node;
@@ -43,9 +46,16 @@ struct Node
   NodeKind kind;
   Node *lhs;
   Node *rhs;
-  int val;
+  int val;    // kindがND_NUMの場合のみ使う
+  int offset; // kindがND_LVARの場合のみ使う
 };
 
+void error(char *fmt, ...);
+
 Token *tokenize(char *p);
-Node *parse(char *user_input, Token *token);
-void codegen(Node *node);
+void parse();
+void codegen();
+
+extern Node *code[100];
+extern Token *token;
+extern char *user_input;
