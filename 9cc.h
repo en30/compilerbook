@@ -14,6 +14,7 @@ typedef enum
   TK_IF,
   TK_ELSE,
   TK_WHILE,
+  TK_FOR,
   TK_EOF,
 } TokenKind;
 
@@ -44,6 +45,7 @@ typedef enum
   ND_RETURN,
   ND_IF,
   ND_WHILE,
+  ND_FOR,
 } NodeKind;
 
 typedef struct Node Node;
@@ -56,8 +58,10 @@ struct Node
   int val;    // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
 
-  Node *cond; // if, while
-  Node *then; // if, while
+  Node *init; // for
+  Node *cond; // if, while, for
+  Node *inc;  // for
+  Node *then; // if, while, for
   Node *els;  // if
 };
 
