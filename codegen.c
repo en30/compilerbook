@@ -18,6 +18,7 @@ void gen_lval(Node *node)
 
 void gen(Node *node)
 {
+  int i;
   switch (node->kind)
   {
   case ND_NUM:
@@ -46,7 +47,7 @@ void gen(Node *node)
     printf("  ret\n");
     return;
   case ND_IF:
-    int i = id();
+    i = id();
     gen(node->cond);
     printf("  pop rax\n");
     printf("  cmp rax, 0\n");
@@ -56,6 +57,17 @@ void gen(Node *node)
     printf(".Lelse%d:\n", i);
     if (node->els)
       gen(node->els);
+    printf(".Lend%d:\n", i);
+    return;
+  case ND_WHILE:
+    i = id();
+    printf(".Lbegin%d:\n", i);
+    gen(node->cond);
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je  .Lend%d\n", i);
+    gen(node->then);
+    printf("  jmp .Lbegin%d\n", i);
     printf(".Lend%d:\n", i);
     return;
   }

@@ -165,6 +165,13 @@ Token *tokenize(char *p)
       continue;
     }
 
+    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5]))
+    {
+      cur = new_token(TK_WHILE, cur, p, 5);
+      p += 5;
+      continue;
+    }
+
     if (is_alpha(*p))
     {
       cur = new_token(TK_IDENT, cur, p++, 1);
@@ -204,6 +211,7 @@ LVar *find_lvar(Token *tok)
 program    = stmt*
 stmt       = expr ";"
            | "if" "(" expr ")" stmt ("else" stmt)?
+           | "while" "(" expr ")" stmt
            | "return" expr ";"
 expr       = assign
 assign     = equality ("=" assign)?
@@ -249,6 +257,15 @@ Node *stmt()
     {
       node->els = stmt();
     }
+  }
+  else if (consume_token(TK_WHILE))
+  {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_WHILE;
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->then = stmt();
   }
   else if (consume_token(TK_RETURN))
   {
