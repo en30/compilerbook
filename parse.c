@@ -62,9 +62,9 @@ bool consume(char *op)
   return true;
 }
 
-bool consume_return()
+bool consume_token(TokenKind kind)
 {
-  if (token->kind != TK_RETURN)
+  if (token->kind != kind)
     return false;
   token = token->next;
   return true;
@@ -151,6 +151,20 @@ Token *tokenize(char *p)
       continue;
     }
 
+    if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2]))
+    {
+      cur = new_token(TK_IF, cur, p, 2);
+      p += 2;
+      continue;
+    }
+
+    if (strncmp(p, "else", 4) == 0 && !is_alnum(p[4]))
+    {
+      cur = new_token(TK_ELSE, cur, p, 4);
+      p += 4;
+      continue;
+    }
+
     if (is_alpha(*p))
     {
       cur = new_token(TK_IDENT, cur, p++, 1);
@@ -188,7 +202,9 @@ LVar *find_lvar(Token *tok)
 
 /*
 program    = stmt*
-stmt       = expr ";" | "return" expr ";"
+stmt       = expr ";"
+           | "if" "(" expr ")" stmt ("else" stmt)?
+           | "return" expr ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -221,18 +237,32 @@ void program()
 Node *stmt()
 {
   Node *node;
-  if (consume_return())
+  if (consume_token(TK_IF))
+  {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_IF;
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->then = stmt();
+    if (consume_token(TK_ELSE))
+    {
+      node->els = stmt();
+    }
+  }
+  else if (consume_token(TK_RETURN))
   {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr();
+    expect(";");
   }
   else
   {
     node = expr();
+    expect(";");
   }
 
-  expect(";");
   return node;
 }
 
