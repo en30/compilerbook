@@ -52,4 +52,8 @@ assert 3 'a = 3;'
 assert 5 'a = 3; a + 2;'
 assert 3 'a = b = 3;'
 
+assert 1 'fooBar_1 = 1;'
+assert 2 'foo = 1; foo = 2; foo;'
+assert 2 'foo = 1; bar = foo + 1; bar;'
+
 echo OK
