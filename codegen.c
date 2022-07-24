@@ -47,28 +47,16 @@ void gen(Node *node)
     return;
   case ND_IF:
     int i = id();
-    if (node->els == NULL)
-    {
-      gen(node->cond);
-      printf("  pop rax\n");
-      printf("  cmp rax, 0\n");
-      printf("  je  .Lend%d\n", i);
-      gen(node->then);
-      printf(".Lend%d:\n", i);
-    }
-    else
-    {
-
-      gen(node->cond);
-      printf("  pop rax\n");
-      printf("  cmp rax, 0\n");
-      printf("  je  .Lelse%d\n", i);
-      gen(node->then);
-      printf("  jmp  .Lend%d\n", i);
-      printf(".Lelse%d:\n", i);
+    gen(node->cond);
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je  .Lelse%d\n", i);
+    gen(node->then);
+    printf("  jmp  .Lend%d\n", i);
+    printf(".Lelse%d:\n", i);
+    if (node->els)
       gen(node->els);
-      printf(".Lend%d:\n", i);
-    }
+    printf(".Lend%d:\n", i);
     return;
   }
 
