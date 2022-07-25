@@ -73,4 +73,11 @@ assert 1 'forx = 1;'
 assert 1 'for(;0;)2; 1;'
 assert 2 'for(a=5;a>2;a=a-1)1; a;'
 
+assert 1 '{1;}'
+assert 2 '{1;2;}'
+assert 1 '{{1;}}'
+assert 4 'f = 0; if(f){ 1; 2; } else { 3; 4; }'
+assert 2 'f = 1; if(f){ 1; 2; } else { 3; 4; }'
+assert 10 'c=0; for(i=0;i<5;i=i+1){c=c+1;c=c+1;} c;'
+
 echo OK

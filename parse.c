@@ -138,7 +138,7 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (strchr("+-*/()<>;=", *p))
+    if (strchr("+-*/()<>;={}", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
@@ -217,6 +217,7 @@ LVar *find_lvar(Token *tok)
 /*
 program    = stmt*
 stmt       = expr ";"
+           | "{" stmt* "}"
            | "if" "(" expr ")" stmt ("else" stmt)?
            | "while" "(" expr ")" stmt
            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -253,7 +254,19 @@ void program()
 Node *stmt()
 {
   Node *node;
-  if (consume_token(TK_IF))
+  if (consume("{"))
+  {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_BLOCK;
+
+    Node *current = node;
+    while (!consume("}"))
+    {
+      current->next = stmt();
+      current = current->next;
+    }
+  }
+  else if (consume_token(TK_IF))
   {
     node = calloc(1, sizeof(Node));
     node->kind = ND_IF;

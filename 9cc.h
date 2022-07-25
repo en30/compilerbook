@@ -46,6 +46,7 @@ typedef enum
   ND_IF,
   ND_WHILE,
   ND_FOR,
+  ND_BLOCK,
 } NodeKind;
 
 typedef struct Node Node;
@@ -63,6 +64,8 @@ struct Node
   Node *inc;  // for
   Node *then; // if, while, for
   Node *els;  // if
+
+  Node *next; // block
 };
 
 typedef struct LVar LVar;
