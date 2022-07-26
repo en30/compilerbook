@@ -1,10 +1,14 @@
 #!/bin/bash
+cat <<EOF | cc -xc -c -o foo.o -
+int foo() { return 42; }
+EOF
+
 assert() {
   expected="$1"
   input="$2"
 
   ./9cc "$input" > tmp.s
-  cc -o tmp tmp.s
+  cc -o tmp tmp.s foo.o
   ./tmp
   actual="$?"
 
@@ -79,5 +83,7 @@ assert 1 '{{1;}}'
 assert 4 'f = 0; if(f){ 1; 2; } else { 3; 4; }'
 assert 2 'f = 1; if(f){ 1; 2; } else { 3; 4; }'
 assert 10 'c=0; for(i=0;i<5;i=i+1){c=c+1;c=c+1;} c;'
+
+assert 42 'foo();'
 
 echo OK

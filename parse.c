@@ -229,7 +229,9 @@ relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = ("+" | "-")? primary
-primary    = num | ident | "(" expr ")"
+primary    = num
+           | ident ( "(" ")" )?
+           | "(" expr ")"
 */
 Node *code[100];
 void program();
@@ -424,24 +426,35 @@ Node *primary()
   if (tok)
   {
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_LVAR;
-
-    LVar *lvar = find_lvar(tok);
-    if (lvar)
+    if (consume("("))
     {
-      node->offset = lvar->offset;
+      node->kind = ND_FUNCALL;
+      node->fname = tok->str;
+      node->len = tok->len;
+      expect(")");
+      return node;
     }
     else
     {
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      lvar->offset = (locals ? locals->offset : 0) + 8;
-      node->offset = lvar->offset;
-      locals = lvar;
+      node->kind = ND_LVAR;
+
+      LVar *lvar = find_lvar(tok);
+      if (lvar)
+      {
+        node->offset = lvar->offset;
+      }
+      else
+      {
+        lvar = calloc(1, sizeof(LVar));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        lvar->offset = (locals ? locals->offset : 0) + 8;
+        node->offset = lvar->offset;
+        locals = lvar;
+      }
+      return node;
     }
-    return node;
   }
 
   return new_node_num(expect_number());
