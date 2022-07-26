@@ -138,7 +138,7 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (strchr("+-*/()<>;={}", *p))
+    if (strchr("+-*/()<>;={},", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
@@ -230,7 +230,7 @@ add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = ("+" | "-")? primary
 primary    = num
-           | ident ( "(" ")" )?
+           | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
 */
 Node *code[100];
@@ -431,7 +431,20 @@ Node *primary()
       node->kind = ND_FUNCALL;
       node->fname = tok->str;
       node->len = tok->len;
-      expect(")");
+      Node head = {};
+      Node *current = &head;
+      if (!consume(")"))
+      {
+        current->next = expr();
+        current = current->next;
+        while (!consume(")"))
+        {
+          expect(",");
+          current->next = expr();
+          current = current->next;
+        }
+        node->args = head.next;
+      }
       return node;
     }
     else

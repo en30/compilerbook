@@ -66,10 +66,11 @@ struct Node
   Node *then; // if, while, for
   Node *els;  // if
 
-  Node *next; // block
+  Node *next; // block, ND_FUNCALL
 
   char *fname; // ND_FUNCALL
   int len;     // ND_FUNCALL
+  Node *args;
 };
 
 typedef struct LVar LVar;

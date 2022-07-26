@@ -1,5 +1,7 @@
 #include "9cc.h"
 
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 int id()
 {
   static int i = 0;
@@ -95,8 +97,34 @@ void gen(Node *node)
     }
     return;
   case ND_FUNCALL:
+    i = id();
+    int nargs = 0;
+    for (Node *n = node->args; n; n = n->next)
+    {
+      gen(n);
+      nargs++;
+    }
+    for (int j = nargs - 1; j >= 0; j--)
+    {
+      printf("  pop %s\n", argreg[j]);
+    }
+
+    // align rsp
+    printf("  mov rax, rsp\n");
+    printf("  and rax, 15\n");
+    printf("  cmp rax, 0\n");
+    printf("  jne .Lalign%d\n", i);
+    printf("  mov rax, %d\n", nargs);
     printf("  call %.*s\n", node->len, node->fname);
     printf("  push rax\n");
+    printf("  jmp .Lend%d\n", i);
+    printf(".Lalign%d:\n", i);
+    printf("  sub rsp, 8\n");
+    printf("  mov rax, %d\n", nargs);
+    printf("  call %.*s\n", node->len, node->fname);
+    printf("  add rsp, 8\n");
+    printf("  push rax\n");
+    printf(".Lend%d:\n", i);
     return;
   }
 
