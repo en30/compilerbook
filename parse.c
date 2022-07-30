@@ -54,6 +54,13 @@ void error_at(char *loc, char *fmt, ...)
   exit(1);
 }
 
+bool peek(char *op)
+{
+  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+    return false;
+  return true;
+}
+
 bool consume(char *op)
 {
   if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
@@ -74,6 +81,15 @@ Token *consume_ident()
 {
   if (token->kind != TK_IDENT)
     return NULL;
+  Token *orig = token;
+  token = token->next;
+  return orig;
+}
+
+Token *expect_ident()
+{
+  if (token->kind != TK_IDENT)
+    error_at(token->str, "識別子ではありません");
   Token *orig = token;
   token = token->next;
   return orig;
@@ -215,13 +231,15 @@ LVar *find_lvar(Token *tok)
 }
 
 /*
-program    = stmt*
+program    = func*
+func       = ident "(" ")" block
 stmt       = expr ";"
-           | "{" stmt* "}"
+           | block
            | "if" "(" expr ")" stmt ("else" stmt)?
            | "while" "(" expr ")" stmt
            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
            | "return" expr ";"
+block      = "{" stmt* "}"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -235,6 +253,8 @@ primary    = num
 */
 Node *code[100];
 void program();
+Node *func();
+Node *block();
 Node *stmt();
 Node *expr();
 Node *assign();
@@ -249,24 +269,46 @@ void program()
 {
   int i = 0;
   while (!at_eof())
-    code[i++] = stmt();
+    code[i++] = func();
   code[i] = NULL;
+}
+
+Node *func()
+{
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_FUNC;
+
+  Token *tok = expect_ident();
+  node->fname = tok->str;
+  node->len = tok->len;
+
+  expect("(");
+  expect(")");
+  node->fbody = block();
+  return node;
+}
+
+Node *block()
+{
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_BLOCK;
+
+  expect("{");
+  Node *current = node;
+  while (!consume("}"))
+  {
+    current->next = stmt();
+    current = current->next;
+  }
+  return node;
 }
 
 Node *stmt()
 {
   Node *node;
-  if (consume("{"))
+  if (peek("{"))
   {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_BLOCK;
-
-    Node *current = node;
-    while (!consume("}"))
-    {
-      current->next = stmt();
-      current = current->next;
-    }
+    return block();
   }
   else if (consume_token(TK_IF))
   {

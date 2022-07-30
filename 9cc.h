@@ -47,7 +47,8 @@ typedef enum
   ND_WHILE,
   ND_FOR,
   ND_BLOCK,
-  ND_FUNCALL
+  ND_FUNCALL,
+  ND_FUNC
 } NodeKind;
 
 typedef struct Node Node;
@@ -71,6 +72,8 @@ struct Node
   char *fname; // ND_FUNCALL
   int len;     // ND_FUNCALL
   Node *args;
+
+  Node *fbody; // ND_FUNC
 };
 
 typedef struct LVar LVar;
