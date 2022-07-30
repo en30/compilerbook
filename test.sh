@@ -94,4 +94,13 @@ assert 10 'main() { plus(1,2) + plus(3,4); }'
 
 assert 42 'bar(){ 42; } main(){ bar(); }'
 
+assert  2 'minus(x, y){ x - y; } main(){ minus(5, 3); }'
+assert  2 'nat(n){ if(n == 1) return 1; 1 + nat(n-1); } main(){ nat(2); }'
+assert  10 'nat(n){ if(n == 1) return 1; 1 + nat(n-1); } main(){ nat(10); }'
+assert  0 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(0); }'
+assert  1 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(1); }'
+assert  1 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(2); }'
+assert  2 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(3); }'
+assert  55 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(10); }'
+
 echo OK

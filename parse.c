@@ -232,7 +232,7 @@ LVar *find_lvar(Token *tok)
 
 /*
 program    = func*
-func       = ident "(" ")" block
+func       = ident "(" (ident ("," ident)*)? ")" block
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
@@ -264,6 +264,7 @@ Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
+Node *lval();
 
 void program()
 {
@@ -281,9 +282,28 @@ Node *func()
   Token *tok = expect_ident();
   node->fname = tok->str;
   node->len = tok->len;
+  locals = NULL;
 
   expect("(");
-  expect(")");
+  if (!consume(")"))
+  {
+    Node head = {};
+    Node *current = &head;
+
+    tok = expect_ident();
+    current->next = lval(tok);
+    current = current->next;
+
+    while (!consume(")"))
+    {
+      expect(",");
+      tok = expect_ident();
+      current->next = lval(tok);
+      current = current->next;
+    }
+    node->args = head.next;
+  }
+
   node->fbody = block();
   return node;
 }
@@ -455,6 +475,29 @@ Node *unary()
   return primary();
 }
 
+Node *lval(Token *tok)
+{
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_LVAR;
+
+  LVar *lvar = find_lvar(tok);
+  if (lvar)
+  {
+    node->offset = lvar->offset;
+  }
+  else
+  {
+    lvar = calloc(1, sizeof(LVar));
+    lvar->next = locals;
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+    lvar->offset = (locals ? locals->offset : 0) + 8;
+    node->offset = lvar->offset;
+    locals = lvar;
+  }
+  return node;
+}
+
 Node *primary()
 {
   if (consume("("))
@@ -467,9 +510,9 @@ Node *primary()
   Token *tok = consume_ident();
   if (tok)
   {
-    Node *node = calloc(1, sizeof(Node));
     if (consume("("))
     {
+      Node *node = calloc(1, sizeof(Node));
       node->kind = ND_FUNCALL;
       node->fname = tok->str;
       node->len = tok->len;
@@ -491,24 +534,7 @@ Node *primary()
     }
     else
     {
-      node->kind = ND_LVAR;
-
-      LVar *lvar = find_lvar(tok);
-      if (lvar)
-      {
-        node->offset = lvar->offset;
-      }
-      else
-      {
-        lvar = calloc(1, sizeof(LVar));
-        lvar->next = locals;
-        lvar->name = tok->str;
-        lvar->len = tok->len;
-        lvar->offset = (locals ? locals->offset : 0) + 8;
-        node->offset = lvar->offset;
-        locals = lvar;
-      }
-      return node;
+      return lval(tok);
     }
   }
 

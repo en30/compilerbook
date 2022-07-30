@@ -135,6 +135,15 @@ void gen(Node *node)
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, 208\n");
 
+    // 引数
+    int j = 0;
+    for (Node *n = node->args; n; n = n->next)
+    {
+      gen_lval(n);
+      printf("  pop rax\n");
+      printf("  mov [rax], %s\n", argreg[j++]);
+    }
+
     gen(node->fbody);
     printf("  pop rax\n");
 
