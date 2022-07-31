@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum
-{
+typedef enum {
   TK_RESERVED,
   TK_IDENT,
   TK_NUM,
@@ -21,8 +20,7 @@ typedef enum
 
 typedef struct Token Token;
 
-struct Token
-{
+struct Token {
   TokenKind kind;
   Token *next;
   int val;
@@ -30,8 +28,7 @@ struct Token
   int len;
 };
 
-typedef enum
-{
+typedef enum {
   ND_ADD,
   ND_SUB,
   ND_MUL,
@@ -56,36 +53,34 @@ typedef enum
 
 typedef struct Node Node;
 
-struct Node
-{
+struct Node {
   NodeKind kind;
   Node *lhs;
   Node *rhs;
-  int val;    // kindがND_NUMの場合のみ使う
-  int offset; // kindがND_LVARの場合のみ使う
+  int val;     // kindがND_NUMの場合のみ使う
+  int offset;  // kindがND_LVARの場合のみ使う
 
-  Node *init; // for
-  Node *cond; // if, while, for
-  Node *inc;  // for
-  Node *then; // if, while, for
-  Node *els;  // if
+  Node *init;  // for
+  Node *cond;  // if, while, for
+  Node *inc;   // for
+  Node *then;  // if, while, for
+  Node *els;   // if
 
-  Node *next; // block, ND_FUNCALL
+  Node *next;  // block, ND_FUNCALL
 
-  char *fname; // ND_FUNCALL
-  int len;     // ND_FUNCALL
+  char *fname;  // ND_FUNCALL
+  int len;      // ND_FUNCALL
   Node *args;
 
-  Node *fbody; // ND_FUNC
+  Node *fbody;  // ND_FUNC
 };
 
 typedef struct LVar LVar;
-struct LVar
-{
-  LVar *next; // 次の変数かNULL
-  char *name; // 変数の名前
-  int len;    // 名前の長さ
-  int offset; // RBPからのオフセット
+struct LVar {
+  LVar *next;  // 次の変数かNULL
+  char *name;  // 変数の名前
+  int len;     // 名前の長さ
+  int offset;  // RBPからのオフセット
 };
 
 void error(char *fmt, ...);

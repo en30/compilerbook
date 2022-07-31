@@ -1,0 +1,4 @@
+{
+  "C_Cpp.clang_format_fallbackStyle": "{BasedOnStyle: Google,ReflowComments: false}",
+  "C_Cpp.vcFormat.indent.preserveComments": true
+}

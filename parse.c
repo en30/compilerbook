@@ -4,8 +4,7 @@ Token *token;
 char *user_input;
 LVar *locals;
 
-Token *new_token(TokenKind kind, Token *cur, char *str, int len)
-{
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
@@ -14,8 +13,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len)
   return tok;
 }
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
-{
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->lhs = lhs;
@@ -23,16 +21,14 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
   return node;
 }
 
-Node *new_node_num(int val)
-{
+Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val = val;
   return node;
 }
 
-void error(char *fmt, ...)
-{
+void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
@@ -40,8 +36,7 @@ void error(char *fmt, ...)
   exit(1);
 }
 
-void error_at(char *loc, char *fmt, ...)
-{
+void error_at(char *loc, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
@@ -54,183 +49,146 @@ void error_at(char *loc, char *fmt, ...)
   exit(1);
 }
 
-bool peek(char *op)
-{
-  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+bool peek(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
     return false;
   return true;
 }
 
-bool consume(char *op)
-{
-  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-    return false;
-  token = token->next;
-  return true;
-}
-
-bool consume_token(TokenKind kind)
-{
-  if (token->kind != kind)
+bool consume(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
     return false;
   token = token->next;
   return true;
 }
 
-Token *consume_ident()
-{
-  if (token->kind != TK_IDENT)
-    return NULL;
+bool consume_token(TokenKind kind) {
+  if (token->kind != kind) return false;
+  token = token->next;
+  return true;
+}
+
+Token *consume_ident() {
+  if (token->kind != TK_IDENT) return NULL;
   Token *orig = token;
   token = token->next;
   return orig;
 }
 
-Token *expect_ident()
-{
-  if (token->kind != TK_IDENT)
-    error_at(token->str, "識別子ではありません");
+Token *expect_ident() {
+  if (token->kind != TK_IDENT) error_at(token->str, "識別子ではありません");
   Token *orig = token;
   token = token->next;
   return orig;
 }
 
-void expect(char *op)
-{
-  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+void expect(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
     error_at(token->str, "\"%s\"ではありません", op);
   token = token->next;
 }
 
-int expect_number()
-{
-  if (token->kind != TK_NUM)
-    error_at(token->str, "数ではありません");
+int expect_number() {
+  if (token->kind != TK_NUM) error_at(token->str, "数ではありません");
   int val = token->val;
   token = token->next;
   return val;
 }
 
-bool consume_typespec()
-{
-  if (token->kind != TK_TYPESPEC)
-    return false;
+bool consume_typespec() {
+  if (token->kind != TK_TYPESPEC) return false;
   token = token->next;
   return true;
 }
 
-bool expect_typespec()
-{
-  if (token->kind != TK_TYPESPEC)
-    error_at(token->str, "intではありません");
+bool expect_typespec() {
+  if (token->kind != TK_TYPESPEC) error_at(token->str, "intではありません");
   token = token->next;
   return true;
 }
 
-bool at_eof()
-{
-  return token->kind == TK_EOF;
+bool at_eof() { return token->kind == TK_EOF; }
+
+bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
+
+bool is_alpha(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_');
 }
 
-bool startswith(char *p, char *q)
-{
-  return memcmp(p, q, strlen(q)) == 0;
-}
+bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
-bool is_alpha(char c)
-{
-  return ('a' <= c && c <= 'z') ||
-         ('A' <= c && c <= 'Z') ||
-         (c == '_');
-}
-
-bool is_alnum(char c)
-{
-  return is_alpha(c) || ('0' <= c && c <= '9');
-}
-
-Token *tokenize(char *p)
-{
+Token *tokenize(char *p) {
   Token head;
   head.next = NULL;
   Token *cur = &head;
 
-  while (*p)
-  {
-    if (isspace(*p))
-    {
+  while (*p) {
+    if (isspace(*p)) {
       p++;
       continue;
     }
 
-    if (startswith(p, "<=") || startswith(p, ">=") || startswith(p, "==") || startswith(p, "!="))
-    {
+    if (startswith(p, "<=") || startswith(p, ">=") || startswith(p, "==") ||
+        startswith(p, "!=")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
       continue;
     }
 
-    if (strchr("+-*/()<>;={},&", *p))
-    {
+    if (strchr("+-*/()<>;={},&", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
 
-    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3]))
-    {
+    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
       cur = new_token(TK_TYPESPEC, cur, p, 3);
       p += 3;
       continue;
     }
 
-    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6]))
-    {
+    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
       cur = new_token(TK_RETURN, cur, p, 6);
       p += 6;
       continue;
     }
 
-    if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2]))
-    {
+    if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2])) {
       cur = new_token(TK_IF, cur, p, 2);
       p += 2;
       continue;
     }
 
-    if (strncmp(p, "else", 4) == 0 && !is_alnum(p[4]))
-    {
+    if (strncmp(p, "else", 4) == 0 && !is_alnum(p[4])) {
       cur = new_token(TK_ELSE, cur, p, 4);
       p += 4;
       continue;
     }
 
-    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5]))
-    {
+    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5])) {
       cur = new_token(TK_WHILE, cur, p, 5);
       p += 5;
       continue;
     }
 
-    if (strncmp(p, "for", 3) == 0 && !is_alnum(p[3]))
-    {
+    if (strncmp(p, "for", 3) == 0 && !is_alnum(p[3])) {
       cur = new_token(TK_FOR, cur, p, 3);
       p += 3;
       continue;
     }
 
-    if (is_alpha(*p))
-    {
+    if (is_alpha(*p)) {
       cur = new_token(TK_IDENT, cur, p++, 1);
-      while (is_alnum(*p))
-      {
+      while (is_alnum(*p)) {
         cur->len++;
         p++;
       }
       continue;
     }
 
-    if (isdigit(*p))
-    {
+    if (isdigit(*p)) {
       cur = new_token(TK_NUM, cur, p, 0);
       char *q = p;
       cur->val = strtol(p, &p, 10);
@@ -245,19 +203,16 @@ Token *tokenize(char *p)
   return head.next;
 }
 
-LVar *find_lvar(Token *tok)
-{
+LVar *find_lvar(Token *tok) {
   for (LVar *var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
       return var;
   return NULL;
 }
 
-void def_lval(Token *tok)
-{
+void def_lval(Token *tok) {
   LVar *lvar = find_lvar(tok);
-  if (lvar)
-    error_at(tok->str, "同名のローカル変数が既に定義済みです");
+  if (lvar) error_at(tok->str, "同名のローカル変数が既に定義済みです");
 
   lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
@@ -307,16 +262,13 @@ Node *primary();
 Node *lval();
 void typespec();
 
-void program()
-{
+void program() {
   int i = 0;
-  while (!at_eof())
-    code[i++] = func();
+  while (!at_eof()) code[i++] = func();
   code[i] = NULL;
 }
 
-Node *func()
-{
+Node *func() {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FUNC;
 
@@ -327,8 +279,7 @@ Node *func()
   locals = NULL;
 
   expect("(");
-  if (!consume(")"))
-  {
+  if (!consume(")")) {
     Node head = {};
     Node *current = &head;
 
@@ -338,8 +289,7 @@ Node *func()
     current->next = lval(tok);
     current = current->next;
 
-    while (!consume(")"))
-    {
+    while (!consume(")")) {
       expect(",");
       expect_typespec();
       tok = expect_ident();
@@ -354,24 +304,19 @@ Node *func()
   return node;
 }
 
-Node *block()
-{
+Node *block() {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_BLOCK;
 
   expect("{");
   Node *current = node;
-  while (!consume("}"))
-  {
-    if (consume_typespec())
-    {
+  while (!consume("}")) {
+    if (consume_typespec()) {
       Token *tok = consume_ident();
       def_lval(tok);
       current->next = lval(tok);
       expect(";");
-    }
-    else
-    {
+    } else {
       current->next = stmt();
     }
     current = current->next;
@@ -379,66 +324,50 @@ Node *block()
   return node;
 }
 
-Node *stmt()
-{
+Node *stmt() {
   Node *node;
-  if (peek("{"))
-  {
+  if (peek("{")) {
     return block();
-  }
-  else if (consume_token(TK_IF))
-  {
+  } else if (consume_token(TK_IF)) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_IF;
     expect("(");
     node->cond = expr();
     expect(")");
     node->then = stmt();
-    if (consume_token(TK_ELSE))
-    {
+    if (consume_token(TK_ELSE)) {
       node->els = stmt();
     }
-  }
-  else if (consume_token(TK_WHILE))
-  {
+  } else if (consume_token(TK_WHILE)) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_WHILE;
     expect("(");
     node->cond = expr();
     expect(")");
     node->then = stmt();
-  }
-  else if (consume_token(TK_FOR))
-  {
+  } else if (consume_token(TK_FOR)) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_FOR;
     expect("(");
-    if (!consume(";"))
-    {
+    if (!consume(";")) {
       node->init = expr();
       expect(";");
     }
-    if (!consume(";"))
-    {
+    if (!consume(";")) {
       node->cond = expr();
       expect(";");
     }
-    if (!consume(")"))
-    {
+    if (!consume(")")) {
       node->inc = expr();
       expect(")");
     }
     node->then = stmt();
-  }
-  else if (consume_token(TK_RETURN))
-  {
+  } else if (consume_token(TK_RETURN)) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr();
     expect(";");
-  }
-  else
-  {
+  } else {
     node = expr();
     expect(";");
   }
@@ -446,25 +375,18 @@ Node *stmt()
   return node;
 }
 
-Node *expr()
-{
-  return assign();
-}
+Node *expr() { return assign(); }
 
-Node *assign()
-{
+Node *assign() {
   Node *node = equality();
-  if (consume("="))
-    node = new_node(ND_ASSIGN, node, assign());
+  if (consume("=")) node = new_node(ND_ASSIGN, node, assign());
   return node;
 }
 
-Node *equality()
-{
+Node *equality() {
   Node *node = relational();
 
-  for (;;)
-  {
+  for (;;) {
     if (consume("=="))
       node = new_node(ND_EQ, node, relational());
     else if (consume("!="))
@@ -474,11 +396,9 @@ Node *equality()
   }
 }
 
-Node *relational()
-{
+Node *relational() {
   Node *node = add();
-  for (;;)
-  {
+  for (;;) {
     if (consume("<="))
       node = new_node(ND_LE, node, add());
     else if (consume("<"))
@@ -492,12 +412,10 @@ Node *relational()
   }
 }
 
-Node *add()
-{
+Node *add() {
   Node *node = mul();
 
-  for (;;)
-  {
+  for (;;) {
     if (consume("+"))
       node = new_node(ND_ADD, node, mul());
     else if (consume("-"))
@@ -507,12 +425,10 @@ Node *add()
   }
 }
 
-Node *mul()
-{
+Node *mul() {
   Node *node = unary();
 
-  for (;;)
-  {
+  for (;;) {
     if (consume("*"))
       node = new_node(ND_MUL, node, unary());
     else if (consume("/"))
@@ -522,58 +438,45 @@ Node *mul()
   }
 }
 
-Node *unary()
-{
-  if (consume("+"))
-    return primary();
-  if (consume("-"))
-    return new_node(ND_SUB, new_node_num(0), primary());
-  if (consume("*"))
-    return new_node(ND_DEREF, primary(), NULL);
-  if (consume("&"))
-    return new_node(ND_ADDR, primary(), NULL);
+Node *unary() {
+  if (consume("+")) return primary();
+  if (consume("-")) return new_node(ND_SUB, new_node_num(0), primary());
+  if (consume("*")) return new_node(ND_DEREF, primary(), NULL);
+  if (consume("&")) return new_node(ND_ADDR, primary(), NULL);
   return primary();
 }
 
-Node *lval(Token *tok)
-{
+Node *lval(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
 
   LVar *lvar = find_lvar(tok);
-  if (!lvar)
-    error_at(tok->str, "定義されていないローカル変数が使われています");
+  if (!lvar) error_at(tok->str, "定義されていないローカル変数が使われています");
 
   node->offset = lvar->offset;
   return node;
 }
 
-Node *primary()
-{
-  if (consume("("))
-  {
+Node *primary() {
+  if (consume("(")) {
     Node *node = expr();
     expect(")");
     return node;
   }
 
   Token *tok = consume_ident();
-  if (tok)
-  {
-    if (consume("("))
-    {
+  if (tok) {
+    if (consume("(")) {
       Node *node = calloc(1, sizeof(Node));
       node->kind = ND_FUNCALL;
       node->fname = tok->str;
       node->len = tok->len;
       Node head = {};
       Node *current = &head;
-      if (!consume(")"))
-      {
+      if (!consume(")")) {
         current->next = expr();
         current = current->next;
-        while (!consume(")"))
-        {
+        while (!consume(")")) {
           expect(",");
           current->next = expr();
           current = current->next;
@@ -581,9 +484,7 @@ Node *primary()
         node->args = head.next;
       }
       return node;
-    }
-    else
-    {
+    } else {
       return lval(tok);
     }
   }
@@ -591,8 +492,7 @@ Node *primary()
   return new_node_num(expect_number());
 }
 
-void parse()
-{
+void parse() {
   program();
   return;
 }
