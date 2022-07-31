@@ -111,6 +111,22 @@ int expect_number()
   return val;
 }
 
+bool consume_typespec()
+{
+  if (token->kind != TK_TYPESPEC)
+    return false;
+  token = token->next;
+  return true;
+}
+
+bool expect_typespec()
+{
+  if (token->kind != TK_TYPESPEC)
+    error_at(token->str, "intではありません");
+  token = token->next;
+  return true;
+}
+
 bool at_eof()
 {
   return token->kind == TK_EOF;
@@ -157,6 +173,13 @@ Token *tokenize(char *p)
     if (strchr("+-*/()<>;={},&", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3]))
+    {
+      cur = new_token(TK_TYPESPEC, cur, p, 3);
+      p += 3;
       continue;
     }
 
@@ -230,16 +253,31 @@ LVar *find_lvar(Token *tok)
   return NULL;
 }
 
+void def_lval(Token *tok)
+{
+  LVar *lvar = find_lvar(tok);
+  if (lvar)
+    error_at(tok->str, "同名のローカル変数が既に定義済みです");
+
+  lvar = calloc(1, sizeof(LVar));
+  lvar->next = locals;
+  lvar->name = tok->str;
+  lvar->len = tok->len;
+  lvar->offset = (locals ? locals->offset : 0) + 8;
+  locals = lvar;
+}
+
 /*
 program    = func*
-func       = ident "(" (ident ("," ident)*)? ")" block
+func       = typespec ident "(" (typespec ident ("," typespec ident)*)? ")" block
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
            | "while" "(" expr ")" stmt
            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
            | "return" expr ";"
-block      = "{" stmt* "}"
+block      = "{" (declaration | stmt)* "}"
+declaration= typespec ident ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -250,12 +288,14 @@ unary      = ("+" | "-" | "*" | "&")? primary
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
+typespec   = "int"
 */
 Node *code[100];
 void program();
 Node *func();
-Node *block();
 Node *stmt();
+Node *block();
+Node *declaration();
 Node *expr();
 Node *assign();
 Node *equality();
@@ -265,6 +305,7 @@ Node *mul();
 Node *unary();
 Node *primary();
 Node *lval();
+void typespec();
 
 void program()
 {
@@ -279,6 +320,7 @@ Node *func()
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FUNC;
 
+  expect_typespec();
   Token *tok = expect_ident();
   node->fname = tok->str;
   node->len = tok->len;
@@ -290,14 +332,18 @@ Node *func()
     Node head = {};
     Node *current = &head;
 
+    expect_typespec();
     tok = expect_ident();
+    def_lval(tok);
     current->next = lval(tok);
     current = current->next;
 
     while (!consume(")"))
     {
       expect(",");
+      expect_typespec();
       tok = expect_ident();
+      def_lval(tok);
       current->next = lval(tok);
       current = current->next;
     }
@@ -317,7 +363,17 @@ Node *block()
   Node *current = node;
   while (!consume("}"))
   {
-    current->next = stmt();
+    if (consume_typespec())
+    {
+      Token *tok = consume_ident();
+      def_lval(tok);
+      current->next = lval(tok);
+      expect(";");
+    }
+    else
+    {
+      current->next = stmt();
+    }
     current = current->next;
   }
   return node;
@@ -485,20 +541,10 @@ Node *lval(Token *tok)
   node->kind = ND_LVAR;
 
   LVar *lvar = find_lvar(tok);
-  if (lvar)
-  {
-    node->offset = lvar->offset;
-  }
-  else
-  {
-    lvar = calloc(1, sizeof(LVar));
-    lvar->next = locals;
-    lvar->name = tok->str;
-    lvar->len = tok->len;
-    lvar->offset = (locals ? locals->offset : 0) + 8;
-    node->offset = lvar->offset;
-    locals = lvar;
-  }
+  if (!lvar)
+    error_at(tok->str, "定義されていないローカル変数が使われています");
+
+  node->offset = lvar->offset;
   return node;
 }
 
