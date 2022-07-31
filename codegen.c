@@ -7,6 +7,15 @@ int id() {
   return i++;
 }
 
+bool is_pointer(Node *node) {
+  return node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR;
+}
+
+int stride(Node *pointer_node) {
+  if (pointer_node->lvar->type->ptr_to->ty == TY_INT) return 4;
+  return 8;
+}
+
 void gen(Node *node);
 
 void gen_lval(Node *node) {
@@ -169,9 +178,19 @@ void gen(Node *node) {
 
   switch (node->kind) {
     case ND_ADD:
+      if (is_pointer(node->lhs) && node->rhs->kind == ND_NUM) {
+        printf("  imul rdi, %d\n", stride(node->lhs));
+      } else if (is_pointer(node->rhs) && node->lhs->kind == ND_NUM) {
+        printf("  imul rax, %d\n", stride(node->rhs));
+      }
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:
+      if (is_pointer(node->lhs) && node->rhs->kind == ND_NUM) {
+        printf("  imul rdi, %d\n", stride(node->lhs));
+      } else if (is_pointer(node->rhs) && node->lhs->kind == ND_NUM) {
+        printf("  imul rax, %d\n", stride(node->rhs));
+      }
       printf("  sub rax, rdi\n");
       break;
     case ND_MUL:

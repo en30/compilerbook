@@ -103,10 +103,10 @@ Type *consume_typespec() {
 
   token = token->next;
   Type *type = calloc(1, sizeof(Type));
-  type->ty = INT;
+  type->ty = TY_INT;
   while (consume("*")) {
     Type *t = calloc(1, sizeof(Type));
-    t->ty = PTR;
+    t->ty = TY_PTR;
     t->ptr_to = type;
     type = t;
   }
@@ -119,10 +119,10 @@ Type *expect_typespec() {
 
   token = token->next;
   Type *type = calloc(1, sizeof(Type));
-  type->ty = INT;
+  type->ty = TY_INT;
   while (consume("*")) {
     Type *t = calloc(1, sizeof(Type));
-    t->ty = PTR;
+    t->ty = TY_PTR;
     t->ptr_to = type;
     type = t;
   }

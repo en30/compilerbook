@@ -1,7 +1,9 @@
 #!/bin/bash
 cat <<EOF | cc -xc -c -o foo.o -
+#include <stdlib.h>
 int foo() { return 42; }
 int plus(int x, int y) { return x + y; }
+void alloc4(int **p, int v1, int v2, int v3, int v4) { *p = calloc(4, sizeof(int)); (*p)[0] = v1; (*p)[1] = v2; (*p)[2] = v3; (*p)[3] = v4; }
 EOF
 
 assert() {
@@ -108,5 +110,11 @@ assert 3 'int main(){ int x; int y; x = 3; y = &x; *y; }'
 assert 0 'int main() { int x; }'
 
 assert 42 'int main() { int x; int *y; y = &x; *y = 42; x; }'
+
+assert 1 'int main() { int *p; alloc4(&p, 1, 2, 4, 8); return *p; }'
+assert 2 'int main() { int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 1; return *q; }'
+assert 4 'int main() { int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; return *q; }'
+assert 8 'int main() { int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 3; return *q; }'
+assert 4 'int main() { int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 3; q = q - 1; return *q; }'
 
 echo OK

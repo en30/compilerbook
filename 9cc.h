@@ -41,6 +41,11 @@ typedef enum {
   ND_DEREF,
 } NodeKind;
 
+typedef enum {
+  TY_INT,
+  TY_PTR,
+} TypeKind;
+
 typedef struct Token Token;
 struct Token;
 typedef struct Node Node;
@@ -90,7 +95,7 @@ struct LVar {
 };
 
 struct Type {
-  enum { INT, PTR } ty;
+  TypeKind ty;
   struct Type *ptr_to;
 };
 
