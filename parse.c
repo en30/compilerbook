@@ -98,16 +98,36 @@ int expect_number() {
   return val;
 }
 
-bool consume_typespec() {
-  if (token->kind != TK_TYPESPEC) return false;
+Type *consume_typespec() {
+  if (token->kind != TK_INT) return NULL;
+
   token = token->next;
-  return true;
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = INT;
+  while (consume("*")) {
+    Type *t = calloc(1, sizeof(Type));
+    t->ty = PTR;
+    t->ptr_to = type;
+    type = t;
+  }
+
+  return type;
 }
 
-bool expect_typespec() {
-  if (token->kind != TK_TYPESPEC) error_at(token->str, "intではありません");
+Type *expect_typespec() {
+  if (token->kind != TK_INT) error_at(token->str, "intではありません");
+
   token = token->next;
-  return true;
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = INT;
+  while (consume("*")) {
+    Type *t = calloc(1, sizeof(Type));
+    t->ty = PTR;
+    t->ptr_to = type;
+    type = t;
+  }
+
+  return type;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
@@ -144,7 +164,7 @@ Token *tokenize(char *p) {
     }
 
     if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
-      cur = new_token(TK_TYPESPEC, cur, p, 3);
+      cur = new_token(TK_INT, cur, p, 3);
       p += 3;
       continue;
     }
@@ -210,7 +230,7 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
-void def_lval(Token *tok) {
+void def_lvar(Token *tok, Type *type) {
   LVar *lvar = find_lvar(tok);
   if (lvar) error_at(tok->str, "同名のローカル変数が既に定義済みです");
 
@@ -219,6 +239,7 @@ void def_lval(Token *tok) {
   lvar->name = tok->str;
   lvar->len = tok->len;
   lvar->offset = (locals ? locals->offset : 0) + 8;
+  lvar->type = type;
   locals = lvar;
 }
 
@@ -243,7 +264,7 @@ unary      = ("+" | "-" | "*" | "&")? primary
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
-typespec   = "int"
+typespec   = "int" "*"*
 */
 Node *code[100];
 void program();
@@ -259,7 +280,7 @@ Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
-Node *lval();
+Node *lvar();
 void typespec();
 
 void program() {
@@ -272,7 +293,7 @@ Node *func() {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FUNC;
 
-  expect_typespec();
+  node->return_type = expect_typespec();
   Token *tok = expect_ident();
   node->fname = tok->str;
   node->len = tok->len;
@@ -283,18 +304,18 @@ Node *func() {
     Node head = {};
     Node *current = &head;
 
-    expect_typespec();
+    Type *type = expect_typespec();
     tok = expect_ident();
-    def_lval(tok);
-    current->next = lval(tok);
+    def_lvar(tok, type);
+    current->next = lvar(tok);
     current = current->next;
 
     while (!consume(")")) {
       expect(",");
-      expect_typespec();
+      type = expect_typespec();
       tok = expect_ident();
-      def_lval(tok);
-      current->next = lval(tok);
+      def_lvar(tok, type);
+      current->next = lvar(tok);
       current = current->next;
     }
     node->args = head.next;
@@ -311,10 +332,11 @@ Node *block() {
   expect("{");
   Node *current = node;
   while (!consume("}")) {
-    if (consume_typespec()) {
-      Token *tok = consume_ident();
-      def_lval(tok);
-      current->next = lval(tok);
+    Type *type = consume_typespec();
+    if (type) {
+      Token *tok = expect_ident();
+      def_lvar(tok, type);
+      current->next = lvar(tok);
       expect(";");
     } else {
       current->next = stmt();
@@ -446,14 +468,14 @@ Node *unary() {
   return primary();
 }
 
-Node *lval(Token *tok) {
+Node *lvar(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_LVAR;
 
   LVar *lvar = find_lvar(tok);
   if (!lvar) error_at(tok->str, "定義されていないローカル変数が使われています");
 
-  node->offset = lvar->offset;
+  node->lvar = lvar;
   return node;
 }
 
@@ -485,7 +507,7 @@ Node *primary() {
       }
       return node;
     } else {
-      return lval(tok);
+      return lvar(tok);
     }
   }
 

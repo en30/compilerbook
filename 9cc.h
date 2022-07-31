@@ -15,18 +15,8 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_EOF,
-  TK_TYPESPEC,
+  TK_INT,
 } TokenKind;
-
-typedef struct Token Token;
-
-struct Token {
-  TokenKind kind;
-  Token *next;
-  int val;
-  char *str;
-  int len;
-};
 
 typedef enum {
   ND_ADD,
@@ -51,14 +41,29 @@ typedef enum {
   ND_DEREF,
 } NodeKind;
 
+typedef struct Token Token;
+struct Token;
 typedef struct Node Node;
+struct Node;
+typedef struct LVar LVar;
+struct LVar;
+typedef struct Type Type;
+struct Type;
+
+struct Token {
+  TokenKind kind;
+  Token *next;
+  int val;
+  char *str;
+  int len;
+};
 
 struct Node {
   NodeKind kind;
   Node *lhs;
   Node *rhs;
   int val;     // kindがND_NUMの場合のみ使う
-  int offset;  // kindがND_LVARの場合のみ使う
+  LVar *lvar;  // kindがND_LVARの場合のみ使う
 
   Node *init;  // for
   Node *cond;  // if, while, for
@@ -72,15 +77,21 @@ struct Node {
   int len;      // ND_FUNCALL
   Node *args;
 
-  Node *fbody;  // ND_FUNC
+  Node *fbody;        // ND_FUNC
+  Type *return_type;  // ND_FUNC
 };
 
-typedef struct LVar LVar;
 struct LVar {
   LVar *next;  // 次の変数かNULL
   char *name;  // 変数の名前
   int len;     // 名前の長さ
   int offset;  // RBPからのオフセット
+  Type *type;
+};
+
+struct Type {
+  enum { INT, PTR } ty;
+  struct Type *ptr_to;
 };
 
 void error(char *fmt, ...);
