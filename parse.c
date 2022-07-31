@@ -5,6 +5,15 @@ char *user_input;
 LVar *locals;
 Node program_head;
 
+Type int_type = {TY_INT};
+
+Type *new_pointer_to(Type *target) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = TY_PTR;
+  type->ptr_to = target;
+  return type;
+}
+
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
@@ -26,6 +35,7 @@ Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val = val;
+  node->type = &int_type;
   return node;
 }
 
@@ -103,13 +113,9 @@ Type *consume_typespec() {
   if (token->kind != TK_INT) return NULL;
 
   token = token->next;
-  Type *type = calloc(1, sizeof(Type));
-  type->ty = TY_INT;
+  Type *type = &int_type;
   while (consume("*")) {
-    Type *t = calloc(1, sizeof(Type));
-    t->ty = TY_PTR;
-    t->ptr_to = type;
-    type = t;
+    type = new_pointer_to(type);
   }
 
   return type;
@@ -119,13 +125,9 @@ Type *expect_typespec() {
   if (token->kind != TK_INT) error_at(token->str, "intではありません");
 
   token = token->next;
-  Type *type = calloc(1, sizeof(Type));
-  type->ty = TY_INT;
+  Type *type = &int_type;
   while (consume("*")) {
-    Type *t = calloc(1, sizeof(Type));
-    t->ty = TY_PTR;
-    t->ptr_to = type;
-    type = t;
+    type = new_pointer_to(type);
   }
 
   return type;
@@ -161,6 +163,12 @@ Token *tokenize(char *p) {
 
     if (strchr("+-*/()<>;={},&", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_SIZEOF, cur, p, 6);
+      p += 6;
       continue;
     }
 
@@ -250,6 +258,15 @@ void def_lvar(Token *tok, Type *type) {
   locals = lvar;
 }
 
+Type *node_type(Node *node) {
+  if (node == NULL) return NULL;
+  if (node->type) return node->type;
+
+  Type *t = node_type(node->lhs);
+  if (t) return t;
+  return node_type(node->rhs);
+}
+
 /*
 program    = func*
 func       = typespec ident "(" (typespec ident ("," typespec ident)*)? ")" block
@@ -267,7 +284,8 @@ equality   = relational ("==" relational | "!=" relational)*
 relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
-unary      = ("+" | "-" | "*" | "&")? primary
+unary      = "sizeof" unary
+           | ("+" | "-" | "*" | "&")? primary
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
@@ -453,6 +471,15 @@ Node *add() {
       node = new_node(ND_SUB, node, mul());
     else
       return node;
+
+    Type *t;
+    if ((t = node_type(node->lhs))->ty == TY_PTR) {
+      node->type = t;
+    } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
+      node->type = t;
+    } else {
+      node->type = &int_type;
+    }
   }
 }
 
@@ -470,10 +497,27 @@ Node *mul() {
 }
 
 Node *unary() {
+  if (consume_token(TK_SIZEOF)) {
+    Node *node = unary();
+    switch (node_type(node)->ty) {
+      case TY_INT:
+        return new_node_num(4);
+      case TY_PTR:
+        return new_node_num(8);
+    }
+  }
   if (consume("+")) return primary();
   if (consume("-")) return new_node(ND_SUB, new_node_num(0), primary());
-  if (consume("*")) return new_node(ND_DEREF, primary(), NULL);
-  if (consume("&")) return new_node(ND_ADDR, primary(), NULL);
+  if (consume("*")) {
+    Node *res = new_node(ND_DEREF, primary(), NULL);
+    res->type = res->lhs->type->ptr_to;
+    return res;
+  }
+  if (consume("&")) {
+    Node *res = new_node(ND_ADDR, primary(), NULL);
+    res->type = new_pointer_to(res->lhs->type);
+    return res;
+  }
   return primary();
 }
 
@@ -485,6 +529,7 @@ Node *lvar(Token *tok) {
   if (!lvar) error_at(tok->str, "定義されていないローカル変数が使われています");
 
   node->lvar = lvar;
+  node->type = lvar->type;
   return node;
 }
 
@@ -502,6 +547,15 @@ Node *primary() {
       node->kind = ND_FUNCALL;
       node->fname = tok->str;
       node->len = tok->len;
+      Node *fn = find_func(tok);
+
+      if (fn) {
+        node->type = fn->return_type;
+      } else {
+        // 外部の関数はとりあえずint決め打ち
+        node->type = &int_type;
+      }
+
       Node head = {};
       Node *current = &head;
       if (!consume(")")) {
@@ -514,6 +568,7 @@ Node *primary() {
         }
         node->args = head.next;
       }
+
       return node;
     } else {
       return lvar(tok);

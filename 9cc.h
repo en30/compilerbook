@@ -16,6 +16,7 @@ typedef enum {
   TK_FOR,
   TK_EOF,
   TK_INT,
+  TK_SIZEOF,
 } TokenKind;
 
 typedef enum {
@@ -84,6 +85,8 @@ struct Node {
 
   Node *fbody;        // ND_FUNC
   Type *return_type;  // ND_FUNC
+
+  Type *type;
 };
 
 struct LVar {
