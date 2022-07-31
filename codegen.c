@@ -225,11 +225,11 @@ void gen(Node *node) {
   printf("  push rax\n");
 }
 
-void codegen() {
+void codegen(Node *funcs) {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
 
-  for (int i = 0; code[i]; i++) {
-    gen(code[i]);
+  for (Node *n = funcs; n; n = n->next) {
+    gen(n);
   }
 }

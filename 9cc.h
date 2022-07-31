@@ -102,10 +102,9 @@ struct Type {
 void error(char *fmt, ...);
 
 Token *tokenize(char *p);
-void parse();
-void codegen();
+Node *parse();
+void codegen(Node *funcs);
 
-extern Node *code[100];
 extern Token *token;
 extern char *user_input;
 extern LVar *locals;

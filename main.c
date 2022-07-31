@@ -1,6 +1,6 @@
 #include "9cc.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc != 2) {
     fprintf(stderr, "引数の個数が正しくありません\n");
     return 1;
@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize(argv[1]);
-  parse();
-  codegen();
+  Node* funcs = parse();
+  codegen(funcs);
   return 0;
 }

@@ -3,6 +3,7 @@
 Token *token;
 char *user_input;
 LVar *locals;
+Node program_head;
 
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
@@ -223,6 +224,12 @@ Token *tokenize(char *p) {
   return head.next;
 }
 
+Node *find_func(Token *tok) {
+  for (Node *n = program_head.next; n; n = n->next)
+    if (n->len == tok->len && !memcmp(tok->str, n->fname, n->len)) return n;
+  return NULL;
+}
+
 LVar *find_lvar(Token *tok) {
   for (LVar *var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
@@ -266,8 +273,7 @@ primary    = num
            | "(" expr ")"
 typespec   = "int" "*"*
 */
-Node *code[100];
-void program();
+Node *program();
 Node *func();
 Node *stmt();
 Node *block();
@@ -283,10 +289,13 @@ Node *primary();
 Node *lvar();
 void typespec();
 
-void program() {
-  int i = 0;
-  while (!at_eof()) code[i++] = func();
-  code[i] = NULL;
+Node *program() {
+  Node *current = &program_head;
+  while (!at_eof()) {
+    current->next = func();
+    current = current->next;
+  }
+  return program_head.next;
 }
 
 Node *func() {
@@ -514,7 +523,4 @@ Node *primary() {
   return new_node_num(expect_number());
 }
 
-void parse() {
-  program();
-  return;
-}
+Node *parse() { return program(); }
