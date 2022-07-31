@@ -103,4 +103,6 @@ assert  1 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(2); }
 assert  2 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(3); }'
 assert  55 'fib(n){ if(n <= 1) return n; fib(n-1) + fib(n-2); } main(){ fib(10); }'
 
+assert 3 'main(){ x = 3; y = &x; *y; }'
+
 echo OK
