@@ -14,6 +14,14 @@ Type *new_pointer_to(Type *target) {
   return type;
 }
 
+Type *new_array_of(Type *target, size_t size) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = TY_ARRAY;
+  type->ptr_to = target;
+  type->array_size = size;
+  return type;
+}
+
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
@@ -109,30 +117,6 @@ int expect_number() {
   return val;
 }
 
-Type *consume_typespec() {
-  if (token->kind != TK_INT) return NULL;
-
-  token = token->next;
-  Type *type = &int_type;
-  while (consume("*")) {
-    type = new_pointer_to(type);
-  }
-
-  return type;
-}
-
-Type *expect_typespec() {
-  if (token->kind != TK_INT) error_at(token->str, "intではありません");
-
-  token = token->next;
-  Type *type = &int_type;
-  while (consume("*")) {
-    type = new_pointer_to(type);
-  }
-
-  return type;
-}
-
 bool at_eof() { return token->kind == TK_EOF; }
 
 bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
@@ -161,7 +145,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (strchr("+-*/()<>;={},&", *p)) {
+    if (strchr("+-*/()<>;={},&[]", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -269,7 +253,7 @@ Type *node_type(Node *node) {
 
 /*
 program    = func*
-func       = typespec ident "(" (typespec ident ("," typespec ident)*)? ")" block
+func       = varspec "(" (varspec ("," varspec)*)? ")" block
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
@@ -277,7 +261,7 @@ stmt       = expr ";"
            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
            | "return" expr ";"
 block      = "{" (declaration | stmt)* "}"
-declaration= typespec ident ";"
+declaration= varspec ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -290,6 +274,7 @@ primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
 typespec   = "int" "*"*
+varspec    = typespec ident ("[" num "]")*
 */
 Node *program();
 Node *func();
@@ -307,6 +292,50 @@ Node *primary();
 Node *lvar();
 void typespec();
 
+Type *consume_typespec() {
+  if (token->kind != TK_INT) return NULL;
+
+  token = token->next;
+  Type *type = &int_type;
+  while (consume("*")) {
+    type = new_pointer_to(type);
+  }
+
+  return type;
+}
+
+Type *expect_typespec() {
+  if (token->kind != TK_INT) error_at(token->str, "intではありません");
+
+  token = token->next;
+  Type *type = &int_type;
+  while (consume("*")) {
+    type = new_pointer_to(type);
+  }
+
+  return type;
+}
+
+void expect_varspec(Type **t, Token **tok) {
+  *t = expect_typespec();
+  *tok = expect_ident();
+  while (consume("[")) {
+    *t = new_array_of(*t, expect_number());
+    expect("]");
+  }
+}
+
+bool consume_varspec(Type **t, Token **tok) {
+  *t = consume_typespec();
+  if (!*t) return false;
+  *tok = expect_ident();
+  while (consume("[")) {
+    *t = new_array_of(*t, expect_number());
+    expect("]");
+  }
+  return true;
+}
+
 Node *program() {
   Node *current = &program_head;
   while (!at_eof()) {
@@ -320,8 +349,8 @@ Node *func() {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FUNC;
 
-  node->return_type = expect_typespec();
-  Token *tok = expect_ident();
+  Token *tok;
+  expect_varspec(&node->return_type, &tok);
   node->fname = tok->str;
   node->len = tok->len;
   locals = NULL;
@@ -331,16 +360,15 @@ Node *func() {
     Node head = {};
     Node *current = &head;
 
-    Type *type = expect_typespec();
-    tok = expect_ident();
+    Type *type;
+    expect_varspec(&type, &tok);
     def_lvar(tok, type);
     current->next = lvar(tok);
     current = current->next;
 
     while (!consume(")")) {
       expect(",");
-      type = expect_typespec();
-      tok = expect_ident();
+      expect_varspec(&type, &tok);
       def_lvar(tok, type);
       current->next = lvar(tok);
       current = current->next;
@@ -360,9 +388,9 @@ Node *block() {
   expect("{");
   Node *current = node;
   while (!consume("}")) {
-    Type *type = consume_typespec();
-    if (type) {
-      Token *tok = expect_ident();
+    Type *type;
+    Token *tok;
+    if (consume_varspec(&type, &tok)) {
       def_lvar(tok, type);
       current->next = lvar(tok);
       expect(";");

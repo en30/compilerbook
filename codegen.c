@@ -16,6 +16,20 @@ int stride(Node *pointer_node) {
   return 8;
 }
 
+int byte_size(Type *type) {
+  switch (type->ty) {
+    case TY_INT:
+      return 1;
+      break;
+    case TY_PTR:
+      return 1;
+    case TY_ARRAY:
+      return type->array_size * byte_size(type->ptr_to);
+    default:
+      break;
+  }
+}
+
 void gen(Node *node);
 
 void gen_lval(Node *node) {
@@ -136,12 +150,12 @@ void gen(Node *node) {
       printf("%.*s:\n", node->len, node->fname);
 
       // プロローグ
-      int nlocals = 0;
-      for (LVar *l = node->locals; l; l = l->next) nlocals++;
-      for (Node *n = node->args; n; n = n->next) nlocals++;
+      int sz = 0;
+      for (LVar *l = node->locals; l; l = l->next) sz += byte_size(l->type);
+      for (Node *n = node->args; n; n = n->next) sz += byte_size(n->lvar->type);
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
-      printf("  sub rsp, %d\n", nlocals * 8);
+      printf("  sub rsp, %d\n", sz * 8);
 
       // 引数
       int j = 0;

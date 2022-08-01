@@ -45,6 +45,7 @@ typedef enum {
 typedef enum {
   TY_INT,
   TY_PTR,
+  TY_ARRAY,
 } TypeKind;
 
 typedef struct Token Token;
@@ -101,6 +102,7 @@ struct LVar {
 struct Type {
   TypeKind ty;
   struct Type *ptr_to;
+  size_t array_size;
 };
 
 void error(char *fmt, ...);
