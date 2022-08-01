@@ -136,10 +136,12 @@ void gen(Node *node) {
       printf("%.*s:\n", node->len, node->fname);
 
       // プロローグ
-      // 変数26個分の領域を確保
+      int nlocals = 0;
+      for (LVar *l = node->locals; l; l = l->next) nlocals++;
+      for (Node *n = node->args; n; n = n->next) nlocals++;
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
-      printf("  sub rsp, 208\n");
+      printf("  sub rsp, %d\n", nlocals * 8);
 
       // 引数
       int j = 0;

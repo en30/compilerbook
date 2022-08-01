@@ -349,6 +349,7 @@ Node *func() {
   }
 
   node->fbody = block();
+  node->locals = locals;
   return node;
 }
 

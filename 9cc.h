@@ -85,6 +85,7 @@ struct Node {
 
   Node *fbody;        // ND_FUNC
   Type *return_type;  // ND_FUNC
+  LVar *locals;       // ND_FUNC
 
   Type *type;
 };
