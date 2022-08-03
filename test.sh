@@ -130,4 +130,7 @@ assert 4 'int main() { int *x; return sizeof(*x); }'
 assert 0 'int main() { int a[10]; return 0; }'
 assert 0 'int main() { int a[10][10]; return 0; }'
 
+assert 40 'int main() { int a[10]; return sizeof(a); }'
+assert 16 'int main() { int a[2][2]; return sizeof(a); }'
+
 echo OK

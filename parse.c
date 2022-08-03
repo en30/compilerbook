@@ -525,15 +525,22 @@ Node *mul() {
   }
 }
 
+int type_size(Type *type) {
+  switch (type->ty) {
+    case TY_INT:
+      return 4;
+    case TY_PTR:
+      return 8;
+    case TY_ARRAY:
+      return type->array_size * type_size(type->ptr_to);
+  }
+}
+
 Node *unary() {
   if (consume_token(TK_SIZEOF)) {
     Node *node = unary();
-    switch (node_type(node)->ty) {
-      case TY_INT:
-        return new_node_num(4);
-      case TY_PTR:
-        return new_node_num(8);
-    }
+    Type *type = node_type(node);
+    return new_node_num(type_size(type));
   }
   if (consume("+")) return primary();
   if (consume("-")) return new_node(ND_SUB, new_node_num(0), primary());
