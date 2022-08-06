@@ -7,7 +7,8 @@ int id() {
   return i++;
 }
 
-bool is_int(Node *node) { return node_type(node)->ty == TY_INT; }
+bool is_char(Node *node) { return node->type->ty == TY_CHAR; }
+bool is_int(Node *node) { return node->type->ty == TY_INT; }
 
 bool is_pointer(Node *node) {
   return (node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR);
@@ -21,7 +22,10 @@ bool is_array_addr(Node *node) {
 bool is_addr(Node *node) { return is_pointer(node) || is_array_addr(node); }
 
 int stride(Node *node) {
+  if (is_pointer(node) && node->lvar->type->ptr_to->ty == TY_CHAR) return 1;
   if (is_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
+  if (is_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_CHAR)
+    return 1;
   if (is_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_INT)
     return 4;
   return 8;
@@ -29,16 +33,27 @@ int stride(Node *node) {
 
 int byte_size(Type *type) {
   switch (type->ty) {
+    case TY_CHAR:
+      return 8;
     case TY_INT:
-      return 1;
-      break;
+      return 8;
     case TY_PTR:
-      return 1;
+      return 8;
     case TY_ARRAY:
       return type->array_size * byte_size(type->ptr_to);
     default:
       break;
   }
+}
+
+void load_var(Node *node) {
+  printf("  pop rax\n");
+  if (byte_size(node->type) == 1) {
+    printf("  movsx rax, BYTE PTR [rax]\n");
+  } else {
+    printf("  mov rax, [rax]\n");
+  }
+  printf("  push rax\n");
 }
 
 void gen(Node *node);
@@ -71,15 +86,11 @@ void gen(Node *node) {
       return;
     case ND_GVAR:
       gen_lval(node);
-      printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
-      printf("  push rax\n");
+      load_var(node);
       return;
     case ND_LVAR:
       gen_lval(node);
-      printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
-      printf("  push rax\n");
+      load_var(node);
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
@@ -87,7 +98,11 @@ void gen(Node *node) {
 
       printf("  pop rdi\n");
       printf("  pop rax\n");
-      printf("  mov [rax], rdi\n");
+      if (byte_size(node->lhs->type) == 1) {
+        printf("  mov [rax], dil\n");
+      } else {
+        printf("  mov [rax], rdi\n");
+      }
       printf("  push rdi\n");
       return;
     case ND_RETURN:
@@ -171,7 +186,7 @@ void gen(Node *node) {
       printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
       printf(".bss\n");
       printf("%.*s:\n", node->gvar->len, node->gvar->name);
-      printf("  .zero %d\n", byte_size(node->gvar->type) * 8);
+      printf("  .zero %d\n", byte_size(node->gvar->type));
       return;
     case ND_FUNC:
       printf(".text\n");
@@ -184,7 +199,7 @@ void gen(Node *node) {
       for (Node *n = node->args; n; n = n->next) sz += byte_size(n->lvar->type);
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
-      printf("  sub rsp, %d\n", sz * 8);
+      printf("  sub rsp, %d\n", sz);
 
       // 引数
       int j = 0;
@@ -209,9 +224,7 @@ void gen(Node *node) {
       return;
     case ND_DEREF:
       gen(node->lhs);
-      printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
-      printf("  push rax\n");
+      load_var(node);
       return;
   }
 

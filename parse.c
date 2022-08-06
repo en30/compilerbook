@@ -7,6 +7,19 @@ LVar *locals;
 Node program_head;
 
 Type int_type = {TY_INT};
+Type char_type = {TY_CHAR};
+int type_size(Type *type) {
+  switch (type->ty) {
+    case TY_CHAR:
+      return 1;
+    case TY_INT:
+      return 4;
+    case TY_PTR:
+      return 8;
+    case TY_ARRAY:
+      return type->array_size * type_size(type->ptr_to);
+  }
+}
 
 Type *new_pointer_to(Type *target) {
   Type *type = calloc(1, sizeof(Type));
@@ -37,12 +50,14 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   node->kind = kind;
   node->lhs = lhs;
   node->rhs = rhs;
+  node->type = &int_type;
   return node;
 }
 
 Node *new_deref_node(Node *node) {
   Node *res = new_node(ND_DEREF, node, NULL);
-  res->type = res->lhs->type->ptr_to;
+  res->type = node->type->ptr_to;
+  if (!res->type) res->type = node->type;
   return res;
 }
 
@@ -50,13 +65,16 @@ Type *binary_operation_result_type(Node *node) {
   switch (node->kind) {
     case ND_ADD:
     case ND_SUB:
-      Type *t;
-      if ((t = node_type(node->lhs))->ty == TY_PTR) {
-        return t;
-      } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
-        return t;
+      Type *lt = node->lhs->type;
+      Type *rt = node->rhs->type;
+      if (lt->ty == TY_PTR) {
+        return lt;
+      } else if (rt->ty == TY_PTR) {
+        return rt;
+      } else if (type_size(lt) > type_size(rt)) {
+        return lt;
       } else {
-        return &int_type;
+        return rt;
       }
     default:
       error("二項演算がサポートされていません");
@@ -198,6 +216,12 @@ Token *tokenize(char *p) {
       continue;
     }
 
+    if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
+      cur = new_token(TK_CHAR, cur, p, 4);
+      p += 4;
+      continue;
+    }
+
     if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
       cur = new_token(TK_INT, cur, p, 3);
       p += 3;
@@ -303,15 +327,6 @@ void def_lvar(Token *tok, Type *type) {
   locals = lvar;
 }
 
-Type *node_type(Node *node) {
-  if (node == NULL) return NULL;
-  if (node->type) return node->type;
-
-  Type *t = node_type(node->lhs);
-  if (t) return t;
-  return node_type(node->rhs);
-}
-
 /*
 program    = (func | gvardec)*
 func       = varspec "(" (varspec ("," varspec)*)? ")" block
@@ -336,7 +351,7 @@ unary      = "sizeof" unary
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
-typespec   = "int" "*"*
+typespec   = ("int" | "char") "*"*
 varspec    = typespec ident ("[" num "]")*
 */
 Node *program();
@@ -357,10 +372,18 @@ Node *lvar();
 void typespec();
 
 Type *consume_typespec() {
-  if (token->kind != TK_INT) return NULL;
-
+  Type *type;
+  switch (token->kind) {
+    case TK_CHAR:
+      type = &char_type;
+      break;
+    case TK_INT:
+      type = &int_type;
+      break;
+    default:
+      return NULL;
+  }
   token = token->next;
-  Type *type = &int_type;
   while (consume("*")) {
     type = new_pointer_to(type);
   }
@@ -369,10 +392,20 @@ Type *consume_typespec() {
 }
 
 Type *expect_typespec() {
-  if (token->kind != TK_INT) error_at(token->str, "intではありません");
+  Type *type;
+  switch (token->kind) {
+    case TK_CHAR:
+      type = &char_type;
+      break;
+    case TK_INT:
+      type = &int_type;
+      break;
+    default:
+      error_at(token->str, "サポートされていない型です");
+      return NULL;
+  }
 
   token = token->next;
-  Type *type = &int_type;
   while (consume("*")) {
     type = new_pointer_to(type);
   }
@@ -546,7 +579,10 @@ Node *expr() { return assign(); }
 
 Node *assign() {
   Node *node = equality();
-  if (consume("=")) node = new_node(ND_ASSIGN, node, assign());
+  if (consume("=")) {
+    node = new_node(ND_ASSIGN, node, assign());
+    node->type = node->lhs->type->ptr_to;
+  }
   return node;
 }
 
@@ -565,6 +601,7 @@ Node *equality() {
 
 Node *relational() {
   Node *node = add();
+
   for (;;) {
     if (consume("<="))
       node = new_node(ND_LE, node, add());
@@ -605,32 +642,23 @@ Node *mul() {
   }
 }
 
-int type_size(Type *type) {
-  switch (type->ty) {
-    case TY_INT:
-      return 4;
-    case TY_PTR:
-      return 8;
-    case TY_ARRAY:
-      return type->array_size * type_size(type->ptr_to);
-  }
-}
-
 Node *unary() {
   if (consume_token(TK_SIZEOF)) {
     Node *node = unary();
-    Type *type = node_type(node);
+    Type *type = node->type;
     if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY)
       return new_node_num(type_size(node->lhs->type));
     return new_node_num(type_size(type));
   }
   if (consume("+")) return unary();
-  if (consume("-")) return new_node(ND_SUB, new_node_num(0), unary());
+  if (consume("-")) return new_sub_node(new_node_num(0), unary());
   if (consume("*")) return new_deref_node(unary());
   if (consume("&")) {
     Node *node = unary();
-    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) return node;
-
+    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) {
+      node->type = new_pointer_to(node->lhs->type->ptr_to);
+      return node;
+    }
     Node *res = new_node(ND_ADDR, node, NULL);
     res->type = new_pointer_to(res->lhs->type);
     return res;

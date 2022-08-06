@@ -15,6 +15,7 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_EOF,
+  TK_CHAR,
   TK_INT,
   TK_SIZEOF,
 } TokenKind;
@@ -45,6 +46,7 @@ typedef enum {
 } NodeKind;
 
 typedef enum {
+  TY_CHAR,
   TY_INT,
   TY_PTR,
   TY_ARRAY,
@@ -122,8 +124,6 @@ void error(char *fmt, ...);
 Token *tokenize(char *p);
 Node *parse();
 void codegen(Node *funcs);
-
-Type *node_type(Node *node);
 
 extern Token *token;
 extern char *user_input;

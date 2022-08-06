@@ -153,4 +153,9 @@ assert 1 'int a; int main() { a = 1; return a; }'
 assert 0 'int a; int g() { return a; } int main() { int a; a = 1; return g(); }'
 assert 6 'int a; int b[2]; int main() { a = 1; b[0] = 2; b[1] = 3; return a + b[0] + b[1]; }'
 
+assert 1 'int main() { char a; return sizeof(a); }'
+assert 10 'int main() { char x[10]; return sizeof(x); }'
+assert 1 'int main() { char a; a = 1; return a; }'
+assert 3 'int main() { char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y; }'
+
 echo OK
