@@ -39,6 +39,23 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
+Node *new_add_node(Node *lhs, Node *rhs) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_ADD;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  Type *t;
+  if ((t = node_type(node->lhs))->ty == TY_PTR) {
+    node->type = t;
+  } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
+    node->type = t;
+  } else {
+    node->type = &int_type;
+  }
+
+  return node;
+}
+
 Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
@@ -270,7 +287,7 @@ add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = "sizeof" unary
            | ("+" | "-" | "*" | "&") unary
-           | primary
+           | primary ("[" expr "]")?
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
@@ -561,7 +578,13 @@ Node *unary() {
     return res;
   }
 
-  return primary();
+  Node *node = primary();
+  if (consume("[")) {
+    node = new_node(ND_DEREF, new_add_node(node, expr()), NULL);
+    expect("]");
+  }
+
+  return node;
 }
 
 Node *lvar(Token *tok) {

@@ -141,4 +141,11 @@ assert 42 'int main() { int a; a = 42; return *(&a + 1 - 1); }'
 
 assert 42 'int main() { int a[2]; *(a + plus(0,1)) = 42; return *(a + 1); }'
 
+assert 3 'int main() { int a[2]; a[0] = 3; return a[0]; }'
+assert 3 'int main() { int a[2]; a[0] = 3; return *a; }'
+assert 3 'int main() { int a[2]; a[1] = 3; return a[1]; }'
+assert 3 'int main() { int a[2]; a[1] = 3; return a[0+1]; }'
+assert 3 'int main() { int a[2]; a[1] = 3; return 1[a]; }'
+assert 3 'int main() { int a[2]; a[0] = 1; a[1] = 2; return a[0] + a[1]; }'
+
 echo OK
