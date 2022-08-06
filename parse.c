@@ -269,7 +269,8 @@ relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = "sizeof" unary
-           | ("+" | "-" | "*" | "&")? primary
+           | ("+" | "-" | "*" | "&") unary
+           | primary
 primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
@@ -544,15 +545,15 @@ Node *unary() {
       return new_node_num(type_size(node->lhs->type));
     return new_node_num(type_size(type));
   }
-  if (consume("+")) return primary();
-  if (consume("-")) return new_node(ND_SUB, new_node_num(0), primary());
+  if (consume("+")) return unary();
+  if (consume("-")) return new_node(ND_SUB, new_node_num(0), unary());
   if (consume("*")) {
-    Node *res = new_node(ND_DEREF, primary(), NULL);
+    Node *res = new_node(ND_DEREF, unary(), NULL);
     res->type = res->lhs->type->ptr_to;
     return res;
   }
   if (consume("&")) {
-    Node *node = primary();
+    Node *node = unary();
     if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) return node;
 
     Node *res = new_node(ND_ADDR, node, NULL);
