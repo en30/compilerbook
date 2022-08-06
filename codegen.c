@@ -8,11 +8,20 @@ int id() {
 }
 
 bool is_pointer(Node *node) {
-  return node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR;
+  return (node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR);
 }
 
-int stride(Node *pointer_node) {
-  if (pointer_node->lvar->type->ptr_to->ty == TY_INT) return 4;
+bool is_array_addr(Node *node) {
+  return (node->kind == ND_ADDR && node->lhs->kind == ND_LVAR &&
+          node->lhs->lvar->type->ty == TY_ARRAY);
+}
+
+bool is_addr(Node *node) { return is_pointer(node) || is_array_addr(node); }
+
+int stride(Node *node) {
+  if (is_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
+  if (is_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_INT)
+    return 4;
   return 8;
 }
 
@@ -194,17 +203,17 @@ void gen(Node *node) {
 
   switch (node->kind) {
     case ND_ADD:
-      if (is_pointer(node->lhs) && node->rhs->kind == ND_NUM) {
+      if (is_addr(node->lhs) && node->rhs->kind == ND_NUM) {
         printf("  imul rdi, %d\n", stride(node->lhs));
-      } else if (is_pointer(node->rhs) && node->lhs->kind == ND_NUM) {
+      } else if (is_addr(node->rhs) && node->lhs->kind == ND_NUM) {
         printf("  imul rax, %d\n", stride(node->rhs));
       }
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:
-      if (is_pointer(node->lhs) && node->rhs->kind == ND_NUM) {
+      if (is_addr(node->lhs) && node->rhs->kind == ND_NUM) {
         printf("  imul rdi, %d\n", stride(node->lhs));
-      } else if (is_pointer(node->rhs) && node->lhs->kind == ND_NUM) {
+      } else if (is_addr(node->rhs) && node->lhs->kind == ND_NUM) {
         printf("  imul rax, %d\n", stride(node->rhs));
       }
       printf("  sub rax, rdi\n");

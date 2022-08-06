@@ -540,6 +540,8 @@ Node *unary() {
   if (consume_token(TK_SIZEOF)) {
     Node *node = unary();
     Type *type = node_type(node);
+    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY)
+      return new_node_num(type_size(node->lhs->type));
     return new_node_num(type_size(type));
   }
   if (consume("+")) return primary();
@@ -550,10 +552,14 @@ Node *unary() {
     return res;
   }
   if (consume("&")) {
-    Node *res = new_node(ND_ADDR, primary(), NULL);
+    Node *node = primary();
+    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) return node;
+
+    Node *res = new_node(ND_ADDR, node, NULL);
     res->type = new_pointer_to(res->lhs->type);
     return res;
   }
+
   return primary();
 }
 
@@ -607,7 +613,12 @@ Node *primary() {
 
       return node;
     } else {
-      return lvar(tok);
+      Node *node = lvar(tok);
+      if (node->type->ty == TY_ARRAY) {
+        node = new_node(ND_ADDR, node, NULL);
+        node->type = new_pointer_to(node->lhs->type->ptr_to);
+      }
+      return node;
     }
   }
 
