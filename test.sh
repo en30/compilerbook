@@ -137,4 +137,6 @@ assert 3 'int main() { int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p 
 
 assert 42 'int main() { int a; a = 42; return *&a; }'
 
+assert 42 'int main() { int a; a = 42; return *(&a + 1 - 1); }'
+
 echo OK
