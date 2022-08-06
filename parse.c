@@ -39,6 +39,12 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
+Node *new_deref_node(Node *node) {
+  Node *res = new_node(ND_DEREF, node, NULL);
+  res->type = res->lhs->type->ptr_to;
+  return res;
+}
+
 Node *new_add_node(Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_ADD;
@@ -564,11 +570,7 @@ Node *unary() {
   }
   if (consume("+")) return unary();
   if (consume("-")) return new_node(ND_SUB, new_node_num(0), unary());
-  if (consume("*")) {
-    Node *res = new_node(ND_DEREF, unary(), NULL);
-    res->type = res->lhs->type->ptr_to;
-    return res;
-  }
+  if (consume("*")) return new_deref_node(unary());
   if (consume("&")) {
     Node *node = unary();
     if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) return node;
@@ -580,7 +582,7 @@ Node *unary() {
 
   Node *node = primary();
   if (consume("[")) {
-    node = new_node(ND_DEREF, new_add_node(node, expr()), NULL);
+    node = new_deref_node(new_add_node(node, expr()));
     expect("]");
   }
 
