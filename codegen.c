@@ -48,6 +48,10 @@ void gen_lval(Node *node) {
     case ND_DEREF:
       gen(node->lhs);
       return;
+    case ND_GVAR:
+      printf("  lea rax, [rip+%.*s]\n", node->gvar->len, node->gvar->name);
+      printf("  push rax\n");
+      return;
     case ND_LVAR:
       printf("  mov rax, rbp\n");
       printf("  sub rax, %d\n", node->lvar->offset);
@@ -64,6 +68,12 @@ void gen(Node *node) {
   switch (node->kind) {
     case ND_NUM:
       printf("  push %d\n", node->val);
+      return;
+    case ND_GVAR:
+      gen_lval(node);
+      printf("  pop rax\n");
+      printf("  mov rax, [rax]\n");
+      printf("  push rax\n");
       return;
     case ND_LVAR:
       gen_lval(node);
@@ -157,7 +167,15 @@ void gen(Node *node) {
       printf("  push rax\n");
       printf(".Lend%d:\n", i);
       return;
+    case ND_GVARDEC:
+      printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
+      printf(".bss\n");
+      printf("%.*s:\n", node->gvar->len, node->gvar->name);
+      printf("  .zero %d\n", byte_size(node->gvar->type) * 8);
+      return;
     case ND_FUNC:
+      printf(".text\n");
+      printf(".globl %.*s\n", node->len, node->fname);
       printf("%.*s:\n", node->len, node->fname);
 
       // プロローグ
@@ -254,7 +272,6 @@ void gen(Node *node) {
 
 void codegen(Node *funcs) {
   printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
 
   for (Node *n = funcs; n; n = n->next) {
     gen(n);

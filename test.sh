@@ -148,4 +148,9 @@ assert 3 'int main() { int a[2]; a[1] = 3; return a[0+1]; }'
 assert 3 'int main() { int a[2]; a[1] = 3; return 1[a]; }'
 assert 3 'int main() { int a[2]; a[0] = 1; a[1] = 2; return a[0] + a[1]; }'
 
+assert 0 'int a; int main() { return a; }'
+assert 1 'int a; int main() { a = 1; return a; }'
+assert 0 'int a; int g() { return a; } int main() { int a; a = 1; return g(); }'
+assert 6 'int a; int b[2]; int main() { a = 1; b[0] = 2; b[1] = 3; return a + b[0] + b[1]; }'
+
 echo OK

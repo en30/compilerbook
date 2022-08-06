@@ -2,6 +2,7 @@
 
 Token *token;
 char *user_input;
+GVar *globals;
 LVar *locals;
 Node program_head;
 
@@ -263,6 +264,25 @@ Node *find_func(Token *tok) {
   return NULL;
 }
 
+GVar *find_gvar(Token *tok) {
+  for (GVar *var = globals; var; var = var->next)
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  return NULL;
+}
+
+void def_gvar(Token *tok, Type *type) {
+  GVar *gvar = find_gvar(tok);
+  if (gvar) error_at(tok->str, "同名のグローバル変数が既に定義済みです");
+
+  gvar = calloc(1, sizeof(GVar));
+  gvar->next = globals;
+  gvar->name = tok->str;
+  gvar->len = tok->len;
+  gvar->type = type;
+  globals = gvar;
+}
+
 LVar *find_lvar(Token *tok) {
   for (LVar *var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
@@ -293,8 +313,9 @@ Type *node_type(Node *node) {
 }
 
 /*
-program    = func*
+program    = (func | gvardec)*
 func       = varspec "(" (varspec ("," varspec)*)? ")" block
+gvardec    = varspec ";"
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
@@ -320,6 +341,7 @@ varspec    = typespec ident ("[" num "]")*
 */
 Node *program();
 Node *func();
+Node *gvardec();
 Node *stmt();
 Node *block();
 Node *declaration();
@@ -378,10 +400,21 @@ bool consume_varspec(Type **t, Token **tok) {
   return true;
 }
 
+bool peek_func() {
+  Token *init = token;
+  if (consume_typespec() && consume_ident() && consume("(")) {
+    token = init;
+    return true;
+  } else {
+    token = init;
+    return false;
+  }
+}
+
 Node *program() {
   Node *current = &program_head;
   while (!at_eof()) {
-    current->next = func();
+    current->next = peek_func() ? func() : gvardec();
     current = current->next;
   }
   return program_head.next;
@@ -420,6 +453,20 @@ Node *func() {
 
   node->fbody = block();
   node->locals = locals;
+  return node;
+}
+
+Node *gvardec() {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_GVARDEC;
+
+  Type *type;
+  Token *tok;
+  expect_varspec(&type, &tok);
+  def_gvar(tok, type);
+  node->gvar = find_gvar(tok);
+  expect(";");
+
   return node;
 }
 
@@ -603,10 +650,22 @@ Node *lvar(Token *tok) {
   node->kind = ND_LVAR;
 
   LVar *lvar = find_lvar(tok);
-  if (!lvar) error_at(tok->str, "定義されていないローカル変数が使われています");
+  if (!lvar) return NULL;
 
   node->lvar = lvar;
   node->type = lvar->type;
+  return node;
+}
+
+Node *gvar(Token *tok) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_GVAR;
+
+  GVar *gvar = find_gvar(tok);
+  if (!gvar) error_at(tok->str, "定義されていない変数が使われています");
+
+  node->gvar = gvar;
+  node->type = gvar->type;
   return node;
 }
 
@@ -649,6 +708,8 @@ Node *primary() {
       return node;
     } else {
       Node *node = lvar(tok);
+      if (!node) node = gvar(tok);
+
       if (node->type->ty == TY_ARRAY) {
         node = new_node(ND_ADDR, node, NULL);
         node->type = new_pointer_to(node->lhs->type->ptr_to);

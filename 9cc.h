@@ -30,6 +30,8 @@ typedef enum {
   ND_LT,
   ND_LE,
   ND_ASSIGN,
+  ND_GVARDEC,
+  ND_GVAR,
   ND_LVAR,
   ND_RETURN,
   ND_IF,
@@ -52,6 +54,8 @@ typedef struct Token Token;
 struct Token;
 typedef struct Node Node;
 struct Node;
+typedef struct GVar GVar;
+struct GVar;
 typedef struct LVar LVar;
 struct LVar;
 typedef struct Type Type;
@@ -71,6 +75,7 @@ struct Node {
   Node *rhs;
   int val;     // kindがND_NUMの場合のみ使う
   LVar *lvar;  // kindがND_LVARの場合のみ使う
+  GVar *gvar;  // kindがND_GVARの場合のみ使う
 
   Node *init;  // for
   Node *cond;  // if, while, for
@@ -88,6 +93,13 @@ struct Node {
   Type *return_type;  // ND_FUNC
   LVar *locals;       // ND_FUNC
 
+  Type *type;
+};
+
+struct GVar {
+  GVar *next;  // 次の変数かNULL
+  char *name;  // 変数の名前
+  int len;     // 名前の長さ
   Type *type;
 };
 
@@ -115,4 +127,5 @@ Type *node_type(Node *node);
 
 extern Token *token;
 extern char *user_input;
+extern GVar *globals;
 extern LVar *locals;
