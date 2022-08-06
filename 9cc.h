@@ -111,6 +111,8 @@ Token *tokenize(char *p);
 Node *parse();
 void codegen(Node *funcs);
 
+Type *node_type(Node *node);
+
 extern Token *token;
 extern char *user_input;
 extern LVar *locals;
