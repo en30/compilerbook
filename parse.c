@@ -45,20 +45,38 @@ Node *new_deref_node(Node *node) {
   return res;
 }
 
+Type *binary_operation_result_type(Node *node) {
+  switch (node->kind) {
+    case ND_ADD:
+    case ND_SUB:
+      Type *t;
+      if ((t = node_type(node->lhs))->ty == TY_PTR) {
+        return t;
+      } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
+        return t;
+      } else {
+        return &int_type;
+      }
+    default:
+      error("二項演算がサポートされていません");
+  }
+}
+
 Node *new_add_node(Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_ADD;
   node->lhs = lhs;
   node->rhs = rhs;
-  Type *t;
-  if ((t = node_type(node->lhs))->ty == TY_PTR) {
-    node->type = t;
-  } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
-    node->type = t;
-  } else {
-    node->type = &int_type;
-  }
+  node->type = binary_operation_result_type(node);
+  return node;
+}
 
+Node *new_sub_node(Node *lhs, Node *rhs) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_SUB;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  node->type = binary_operation_result_type(node);
   return node;
 }
 
@@ -519,20 +537,11 @@ Node *add() {
 
   for (;;) {
     if (consume("+"))
-      node = new_node(ND_ADD, node, mul());
+      node = new_add_node(node, mul());
     else if (consume("-"))
-      node = new_node(ND_SUB, node, mul());
+      node = new_sub_node(node, mul());
     else
       return node;
-
-    Type *t;
-    if ((t = node_type(node->lhs))->ty == TY_PTR) {
-      node->type = t;
-    } else if ((t = node_type(node->rhs))->ty == TY_PTR) {
-      node->type = t;
-    } else {
-      node->type = &int_type;
-    }
   }
 }
 
