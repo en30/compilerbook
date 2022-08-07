@@ -1,6 +1,6 @@
 CC=docker run -it --rm -v $(PWD):/9cc -w /9cc compilerbook cc
 CFLAGS=-std=c11 -g -static
-SRCS=$(wildcard *.c)
+SRCS=$(filter-out tmp.c, $(wildcard *.c))
 OBJS=$(SRCS:.c=.o)
 
 9cc: $(OBJS)

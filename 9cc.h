@@ -129,6 +129,7 @@ Token *tokenize(char *p);
 Node *parse();
 void codegen(Node *funcs);
 
+extern char *filename;
 extern Token *token;
 extern char *user_input;
 extern GVar *globals;
