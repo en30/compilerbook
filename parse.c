@@ -5,9 +5,11 @@ char *user_input;
 GVar *globals;
 LVar *locals;
 Node program_head;
+Node *strings;
 
 Type int_type = {TY_INT};
 Type char_type = {TY_CHAR};
+
 int type_size(Type *type) {
   switch (type->ty) {
     case TY_CHAR:
@@ -163,6 +165,13 @@ Token *expect_ident() {
   return orig;
 }
 
+Token *consume_str() {
+  if (token->kind != TK_STR) return NULL;
+  Token *orig = token;
+  token = token->next;
+  return orig;
+}
+
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len))
@@ -194,6 +203,19 @@ Token *tokenize(char *p) {
 
   while (*p) {
     if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    if (*p == '"') {
+      p++;
+      cur = new_token(TK_STR, cur, p, 0);
+      while (*p != '"') {
+        if (*p == '\n' || *p == '\0')
+          error_at(p, "文字列リテラルが閉じられていません");
+        p++;
+        cur->len++;
+      }
       p++;
       continue;
     }
@@ -307,6 +329,21 @@ void def_gvar(Token *tok, Type *type) {
   globals = gvar;
 }
 
+char *new_literal_string_name() {
+  static int i = 0;
+  char *buf = calloc(1, 20);
+  sprintf(buf, ".LC%d", i++);
+  return buf;
+}
+
+GVar *new_string_literal(Token *tok) {
+  GVar *gvar = calloc(1, sizeof(GVar));
+  gvar->name = new_literal_string_name();
+  gvar->len = strlen(gvar->name);
+  gvar->type = new_array_of(&char_type, tok->len + 1);
+  return gvar;
+}
+
 LVar *find_lvar(Token *tok) {
   for (LVar *var = locals; var; var = var->next)
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
@@ -349,6 +386,7 @@ unary      = "sizeof" unary
            | ("+" | "-" | "*" | "&") unary
            | primary ("[" expr "]")?
 primary    = num
+           | str
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
 typespec   = ("int" | "char") "*"*
@@ -697,6 +735,24 @@ Node *gvar(Token *tok) {
   return node;
 }
 
+Node *str(Token *tok) {
+  GVar *gvar = new_string_literal(tok);
+
+  Node *dec = calloc(1, sizeof(Node));
+  dec->kind = ND_GVARDEC;
+  dec->gvar = gvar;
+  dec->next = strings;
+  dec->literal_data = tok->str;
+  dec->len = tok->len;
+  strings = dec;
+
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_GVAR;
+  node->gvar = gvar;
+  node->type = gvar->type;
+  return new_node(ND_ADDR, node, NULL);
+}
+
 Node *primary() {
   if (consume("(")) {
     Node *node = expr();
@@ -744,6 +800,10 @@ Node *primary() {
       }
       return node;
     }
+  }
+
+  if (tok = consume_str()) {
+    return str(tok);
   }
 
   return new_node_num(expect_number());

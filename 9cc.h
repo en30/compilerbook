@@ -18,6 +18,7 @@ typedef enum {
   TK_CHAR,
   TK_INT,
   TK_SIZEOF,
+  TK_STR,
 } TokenKind;
 
 typedef enum {
@@ -95,6 +96,8 @@ struct Node {
   Type *return_type;  // ND_FUNC
   LVar *locals;       // ND_FUNC
 
+  char *literal_data;
+
   Type *type;
 };
 
@@ -118,6 +121,7 @@ struct Type {
   struct Type *ptr_to;
   size_t array_size;
 };
+int type_size(Type *type);
 
 void error(char *fmt, ...);
 
@@ -129,3 +133,4 @@ extern Token *token;
 extern char *user_input;
 extern GVar *globals;
 extern LVar *locals;
+extern Node *strings;

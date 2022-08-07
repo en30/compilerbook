@@ -48,7 +48,7 @@ int byte_size(Type *type) {
 
 void load_var(Node *node) {
   printf("  pop rax\n");
-  if (byte_size(node->type) == 1) {
+  if (type_size(node->type) == 1) {
     printf("  movsx rax, BYTE PTR [rax]\n");
   } else {
     printf("  mov rax, [rax]\n");
@@ -183,10 +183,15 @@ void gen(Node *node) {
       printf(".Lend%d:\n", i);
       return;
     case ND_GVARDEC:
-      printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
-      printf(".bss\n");
-      printf("%.*s:\n", node->gvar->len, node->gvar->name);
-      printf("  .zero %d\n", byte_size(node->gvar->type));
+      if (node->literal_data) {
+        printf("%.*s:\n", node->gvar->len, node->gvar->name);
+        printf("  .string \"%.*s\"\n", node->len, node->literal_data);
+      } else {
+        printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
+        printf(".bss\n");
+        printf("%.*s:\n", node->gvar->len, node->gvar->name);
+        printf("  .zero %d\n", byte_size(node->gvar->type));
+      }
       return;
     case ND_FUNC:
       printf(".text\n");
@@ -286,6 +291,10 @@ void gen(Node *node) {
 void codegen(Node *funcs) {
   printf(".intel_syntax noprefix\n");
 
+  printf(".section .rodata\n");
+  for (Node *s = strings; s; s = s->next) {
+    gen(s);
+  }
   for (Node *n = funcs; n; n = n->next) {
     gen(n);
   }
