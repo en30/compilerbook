@@ -10,23 +10,42 @@ int id() {
 bool is_char(Node *node) { return node->type->ty == TY_CHAR; }
 bool is_int(Node *node) { return node->type->ty == TY_INT; }
 
-bool is_pointer(Node *node) {
+bool is_lvar_pointer(Node *node) {
   return (node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR);
 }
 
-bool is_array_addr(Node *node) {
+bool is_lvar_array_addr(Node *node) {
   return (node->kind == ND_ADDR && node->lhs->kind == ND_LVAR &&
           node->lhs->lvar->type->ty == TY_ARRAY);
 }
+bool is_gvar_pointer(Node *node) {
+  return (node->kind == ND_GVAR && node->gvar->type->ty == TY_PTR);
+}
 
-bool is_addr(Node *node) { return is_pointer(node) || is_array_addr(node); }
+bool is_gvar_array_addr(Node *node) {
+  return (node->kind == ND_ADDR && node->lhs->kind == ND_GVAR &&
+          node->lhs->gvar->type->ty == TY_ARRAY);
+}
+
+bool is_addr(Node *node) {
+  return is_lvar_pointer(node) || is_lvar_array_addr(node) ||
+         is_gvar_pointer(node) || is_gvar_array_addr(node);
+}
 
 int stride(Node *node) {
-  if (is_pointer(node) && node->lvar->type->ptr_to->ty == TY_CHAR) return 1;
-  if (is_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_CHAR)
+  if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_CHAR)
     return 1;
-  if (is_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_INT)
+  if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
+  if (is_lvar_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_CHAR)
+    return 1;
+  if (is_lvar_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_INT)
+    return 4;
+  if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_CHAR)
+    return 1;
+  if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_INT) return 4;
+  if (is_gvar_array_addr(node) && node->lhs->gvar->type->ptr_to->ty == TY_CHAR)
+    return 1;
+  if (is_gvar_array_addr(node) && node->lhs->gvar->type->ptr_to->ty == TY_INT)
     return 4;
   return 8;
 }

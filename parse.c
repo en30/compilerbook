@@ -784,7 +784,10 @@ Node *str(Token *tok) {
   node->kind = ND_GVAR;
   node->gvar = gvar;
   node->type = gvar->type;
-  return new_node(ND_ADDR, node, NULL);
+
+  node = new_node(ND_ADDR, node, NULL);
+  node->type = new_pointer_to(node->lhs->type->ptr_to);
+  return node;
 }
 
 Node *primary() {
