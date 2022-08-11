@@ -188,6 +188,7 @@ void gen(Node *node) {
         printf("  pop %s\n", argreg[j]);
       }
 
+      printf("  mov al, 0\n");
       // align rsp
       printf("  mov rax, rsp\n");
       printf("  and rax, 15\n");
