@@ -247,6 +247,12 @@ Token *tokenize(char *p) {
       while (*p != '"') {
         if (*p == '\n' || *p == '\0')
           error_at(p, "文字列リテラルが閉じられていません");
+        if (strncmp(p, "\\\"", 2) == 0) {
+          p += 2;
+          cur->len += 2;
+          continue;
+        }
+
         p++;
         cur->len++;
       }
