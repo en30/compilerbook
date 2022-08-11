@@ -153,6 +153,8 @@ void gen(Node *node) {
       gen(node->then);
       printf("  jmp .Lbegin%d\n", i);
       printf(".Lend%d:\n", i);
+      // popできるダミーの値を詰めておく
+      printf("  push 0\n");
       return;
     case ND_FOR:
       i = id();
@@ -166,6 +168,8 @@ void gen(Node *node) {
       if (node->inc) gen(node->inc);
       printf("  jmp .Lbegin%d\n", i);
       printf(".Lend%d:\n", i);
+      // popできるダミーの値を詰めておく
+      printf("  push 0\n");
       return;
     case ND_BLOCK:
       for (Node *n = node->next; n; n = n->next) {
