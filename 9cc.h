@@ -33,6 +33,7 @@ typedef enum {
   ND_LE,
   ND_ASSIGN,
   ND_GVARDEC,
+  ND_GVARDEF,
   ND_GVAR,
   ND_LVAR,
   ND_RETURN,
@@ -96,8 +97,6 @@ struct Node {
   Type *return_type;  // ND_FUNC
   LVar *locals;       // ND_FUNC
 
-  char *literal_data;
-
   Type *type;
 };
 
@@ -106,6 +105,9 @@ struct GVar {
   char *name;  // 変数の名前
   int len;     // 名前の長さ
   Type *type;
+  bool initialized;
+  char *init_str;
+  int init_int;
 };
 
 struct LVar {

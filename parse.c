@@ -357,9 +357,9 @@ GVar *find_gvar(Token *tok) {
   return NULL;
 }
 
-void def_gvar(Token *tok, Type *type) {
+GVar *def_gvar(Token *tok, Type *type) {
   GVar *gvar = find_gvar(tok);
-  if (gvar) error_at(tok->str, "同名のグローバル変数が既に定義済みです");
+  if (gvar) return NULL;
 
   gvar = calloc(1, sizeof(GVar));
   gvar->next = globals;
@@ -367,6 +367,7 @@ void def_gvar(Token *tok, Type *type) {
   gvar->len = tok->len;
   gvar->type = type;
   globals = gvar;
+  return gvar;
 }
 
 char *new_literal_string_name() {
@@ -381,6 +382,8 @@ GVar *new_string_literal(Token *tok) {
   gvar->name = new_literal_string_name();
   gvar->len = strlen(gvar->name);
   gvar->type = new_array_of(&char_type, tok->len + 1);
+  gvar->init_str = calloc(1, tok->len + 1);
+  strncpy(gvar->init_str, tok->str, tok->len);
   return gvar;
 }
 
@@ -407,7 +410,7 @@ void def_lvar(Token *tok, Type *type) {
 /*
 program    = (func | gvardec)*
 func       = varspec "(" (varspec ("," varspec)*)? ")" block
-gvardec    = varspec ";"
+gvardec    = varspec ("=" equality)? ";"
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
@@ -525,7 +528,9 @@ bool peek_func() {
 Node *program() {
   Node *current = &program_head;
   while (!at_eof()) {
-    current->next = peek_func() ? func() : gvardec();
+    Node *next = peek_func() ? func() : gvardec();
+    if (!next) continue;
+    current->next = next;
     current = current->next;
   }
   return program_head.next;
@@ -569,15 +574,32 @@ Node *func() {
 
 Node *gvardec() {
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_GVARDEC;
 
   Type *type;
   Token *tok;
   expect_varspec(&type, &tok);
-  def_gvar(tok, type);
+  GVar *new_gvar = def_gvar(tok, type);
   node->gvar = find_gvar(tok);
-  expect(";");
 
+  if (consume("=")) {
+    node->kind = ND_GVARDEF;
+
+    if (!new_gvar && node->gvar->initialized) {
+      error_at(token->str, "既にグローバル変数が初期化済みです");
+    }
+    node->gvar->initialized = true;
+    Node *init = equality();
+    if (init->kind == ND_NUM) {
+      node->gvar->init_int = init->val;
+    }
+  } else {
+    node->kind = ND_GVARDEC;
+
+    // 再宣言は無視
+    if (!new_gvar) node = NULL;
+  }
+
+  expect(";");
   return node;
 }
 
@@ -779,11 +801,9 @@ Node *str(Token *tok) {
   GVar *gvar = new_string_literal(tok);
 
   Node *dec = calloc(1, sizeof(Node));
-  dec->kind = ND_GVARDEC;
+  dec->kind = ND_GVARDEF;
   dec->gvar = gvar;
   dec->next = strings;
-  dec->literal_data = tok->str;
-  dec->len = tok->len;
   strings = dec;
 
   Node *node = calloc(1, sizeof(Node));

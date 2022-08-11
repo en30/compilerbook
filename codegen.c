@@ -207,14 +207,21 @@ void gen(Node *node) {
       printf(".Lend%d:\n", i);
       return;
     case ND_GVARDEC:
-      if (node->literal_data) {
-        printf("%.*s:\n", node->gvar->len, node->gvar->name);
-        printf("  .string \"%.*s\"\n", node->len, node->literal_data);
-      } else {
-        printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
-        printf(".bss\n");
-        printf("%.*s:\n", node->gvar->len, node->gvar->name);
-        printf("  .zero %d\n", byte_size(node->gvar->type));
+      if (node->gvar->initialized) return;
+
+      printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
+      printf(".bss\n");
+      printf("%.*s:\n", node->gvar->len, node->gvar->name);
+      printf("  .zero %d\n", byte_size(node->gvar->type));
+      return;
+    case ND_GVARDEF:
+      printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
+      printf(".data\n");
+      printf("%.*s:\n", node->gvar->len, node->gvar->name);
+      if (node->gvar->init_str) {
+        printf("  .string \"%s\"\n", node->gvar->init_str);
+      } else if (node->gvar->init_int) {
+        printf("  .long %d\n", node->gvar->init_int);
       }
       return;
     case ND_FUNC:
