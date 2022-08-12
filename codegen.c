@@ -218,10 +218,28 @@ void gen(Node *node) {
       printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
       printf(".data\n");
       printf("%.*s:\n", node->gvar->len, node->gvar->name);
-      if (node->gvar->init_str) {
+      if (node->gvar->init_str) {  // string literal
         printf("  .string \"%s\"\n", node->gvar->init_str);
-      } else if (node->gvar->init_int) {
-        printf("  .long %d\n", node->gvar->init_int);
+      } else if (node->lhs->kind == ND_NUM) {
+        printf("  .long %d\n", node->lhs->val);
+      } else if (node->lhs->kind == ND_ADDR) {
+        GVar *g = node->lhs->lhs->gvar;
+        if (g->init_str) {
+          printf("  .string \"%s\"\n", g->init_str);
+        } else {
+          printf("  .quad %.*s\n", g->len, g->name);
+        }
+      } else if (node->lhs->kind == ND_ADD) {
+        Node *lhs = node->lhs->lhs;
+        Node *rhs = node->lhs->rhs;
+        if (lhs->kind == ND_NUM) {
+          Node *tmp = lhs;
+          lhs = rhs;
+          rhs = tmp;
+        }
+
+        printf("  .quad %.*s + %d\n", lhs->lhs->gvar->len, lhs->lhs->gvar->name,
+               rhs->val);
       }
       return;
     case ND_FUNC:

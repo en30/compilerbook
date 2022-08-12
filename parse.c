@@ -10,6 +10,8 @@ Node *strings;
 Type int_type = {TY_INT};
 Type char_type = {TY_CHAR};
 
+int UNK_ARRAY_SIZE = -1;
+
 int type_size(Type *type) {
   switch (type->ty) {
     case TY_CHAR:
@@ -180,6 +182,13 @@ void expect(char *op) {
       memcmp(token->str, op, token->len))
     error_at(token->str, "\"%s\"ではありません", op);
   token = token->next;
+}
+
+int consume_array_size() {
+  if (token->kind != TK_NUM) return UNK_ARRAY_SIZE;
+  int val = token->val;
+  token = token->next;
+  return val;
 }
 
 int expect_number() {
@@ -415,7 +424,7 @@ primary    = num
            | ident ( "(" (expr ("," expr)*)? ")" )?
            | "(" expr ")"
 typespec   = ("int" | "char") "*"*
-varspec    = typespec ident ("[" num "]")*
+varspec    = typespec ident ("[" num? "]")*
 */
 Node *program();
 Node *func();
@@ -480,7 +489,7 @@ void expect_varspec(Type **t, Token **tok) {
   *t = expect_typespec();
   *tok = expect_ident();
   while (consume("[")) {
-    *t = new_array_of(*t, expect_number());
+    *t = new_array_of(*t, consume_array_size());
     expect("]");
   }
 }
@@ -490,7 +499,7 @@ bool consume_varspec(Type **t, Token **tok) {
   if (!*t) return false;
   *tok = expect_ident();
   while (consume("[")) {
-    *t = new_array_of(*t, expect_number());
+    *t = new_array_of(*t, consume_array_size());
     expect("]");
   }
   return true;
@@ -594,6 +603,17 @@ Node *comptime_eval(Node *node) {
   return node;
 }
 
+bool node_is_string_literal(Node *node) {
+  return node->kind == ND_ADDR && node->lhs->kind == ND_GVAR &&
+         node->lhs->gvar->init_str;
+}
+
+GVar *string_literal_gvar(Node *node) { return node->lhs->gvar; }
+
+void type_assign(Type *lhs, Type *rhs) {
+  if (lhs->array_size == UNK_ARRAY_SIZE) lhs->array_size = rhs->array_size;
+}
+
 Node *gvardec() {
   Node *node = calloc(1, sizeof(Node));
 
@@ -610,10 +630,9 @@ Node *gvardec() {
       error_at(token->str, "既にグローバル変数が初期化済みです");
     }
     node->gvar->initialized = true;
-    Node *init = comptime_eval(equality());
-
-    if (init->kind == ND_NUM) {
-      node->gvar->init_int = init->val;
+    node->lhs = comptime_eval(equality());
+    if (node_is_string_literal(node->lhs)) {
+      type_assign(node->gvar->type, string_literal_gvar(node->lhs)->type);
     }
   } else {
     node->kind = ND_GVARDEC;
