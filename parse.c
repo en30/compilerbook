@@ -572,6 +572,46 @@ Node *func() {
   return node;
 }
 
+int eval_constexp(Node *node) {
+  switch (node->kind) {
+    case ND_NUM:
+      return node->val;
+    case ND_ADD:
+      return eval_constexp(node->lhs) + eval_constexp(node->rhs);
+    case ND_SUB:
+      return eval_constexp(node->lhs) - eval_constexp(node->rhs);
+    case ND_MUL:
+      return eval_constexp(node->lhs) * eval_constexp(node->rhs);
+    case ND_DIV:
+      return eval_constexp(node->lhs) / eval_constexp(node->rhs);
+    case ND_EQ:
+      return eval_constexp(node->lhs) == eval_constexp(node->rhs);
+    case ND_NE:
+      return eval_constexp(node->lhs) != eval_constexp(node->rhs);
+    case ND_LT:
+      return eval_constexp(node->lhs) < eval_constexp(node->rhs);
+    case ND_LE:
+      return eval_constexp(node->lhs) <= eval_constexp(node->rhs);
+    default:
+      error("not a constexpr");
+  }
+}
+
+int comptimeops[] = {ND_ADD, ND_SUB, ND_MUL, ND_DIV,
+                     ND_EQ,  ND_NE,  ND_LT,  ND_LE};
+Node *comptime_eval(Node *node) {
+  int l = sizeof(comptimeops) / sizeof(ND_ADD);
+  for (int i = 0; i < l; i++) {
+    if (node->kind != comptimeops[i]) continue;
+    if (node->lhs->kind == ND_NUM && node->rhs->kind == ND_NUM)
+      return new_node_num(eval_constexp(node));
+
+    return new_node(node->kind, comptime_eval(node->lhs),
+                    comptime_eval(node->rhs));
+  }
+  return node;
+}
+
 Node *gvardec() {
   Node *node = calloc(1, sizeof(Node));
 
@@ -588,7 +628,8 @@ Node *gvardec() {
       error_at(token->str, "既にグローバル変数が初期化済みです");
     }
     node->gvar->initialized = true;
-    Node *init = equality();
+    Node *init = comptime_eval(equality());
+
     if (init->kind == ND_NUM) {
       node->gvar->init_int = init->val;
     }

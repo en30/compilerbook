@@ -4,7 +4,7 @@ int a;
 int b[2];
 int c;
 int c = 3;
-int d = 5;
+int d = 2 + 3;
 
 int g() {
   int a;
