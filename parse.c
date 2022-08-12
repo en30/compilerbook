@@ -47,22 +47,6 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   return tok;
 }
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = kind;
-  node->lhs = lhs;
-  node->rhs = rhs;
-  node->type = &int_type;
-  return node;
-}
-
-Node *new_deref_node(Node *node) {
-  Node *res = new_node(ND_DEREF, node, NULL);
-  res->type = node->type->ptr_to;
-  if (!res->type) res->type = node->type;
-  return res;
-}
-
 Type *binary_operation_result_type(Node *node) {
   switch (node->kind) {
     case ND_ADD:
@@ -83,21 +67,19 @@ Type *binary_operation_result_type(Node *node) {
   }
 }
 
-Node *new_add_node(Node *lhs, Node *rhs) {
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_ADD;
+  node->kind = kind;
   node->lhs = lhs;
   node->rhs = rhs;
-  node->type = binary_operation_result_type(node);
-  return node;
-}
-
-Node *new_sub_node(Node *lhs, Node *rhs) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_SUB;
-  node->lhs = lhs;
-  node->rhs = rhs;
-  node->type = binary_operation_result_type(node);
+  if (node->kind == ND_DEREF) {
+    node->type = node->lhs->type->ptr_to;
+    if (!node->type) node->type = node->lhs->type;
+  } else if (node->kind == ND_ADD || node->kind == ND_SUB) {
+    node->type = binary_operation_result_type(node);
+  } else {
+    node->type = &int_type;
+  }
   return node;
 }
 
@@ -762,9 +744,9 @@ Node *add() {
 
   for (;;) {
     if (consume("+"))
-      node = new_add_node(node, mul());
+      node = new_node(ND_ADD, node, mul());
     else if (consume("-"))
-      node = new_sub_node(node, mul());
+      node = new_node(ND_SUB, node, mul());
     else
       return node;
   }
@@ -792,8 +774,8 @@ Node *unary() {
     return new_node_num(type_size(type));
   }
   if (consume("+")) return unary();
-  if (consume("-")) return new_sub_node(new_node_num(0), unary());
-  if (consume("*")) return new_deref_node(unary());
+  if (consume("-")) return new_node(ND_SUB, new_node_num(0), unary());
+  if (consume("*")) return new_node(ND_DEREF, unary(), NULL);
   if (consume("&")) {
     Node *node = unary();
     if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) {
@@ -807,7 +789,7 @@ Node *unary() {
 
   Node *node = primary();
   if (consume("[")) {
-    node = new_deref_node(new_add_node(node, expr()));
+    node = new_node(ND_DEREF, new_node(ND_ADD, node, expr()), NULL);
     expect("]");
   }
 
