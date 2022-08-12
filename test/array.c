@@ -10,7 +10,9 @@ int main() {
   ASSERT(16, sizeof(b));
 
   *a = 1;
+  ASSERT(1, a[0]);
   *(a + 1) = 2;
+  ASSERT(2, a[1]);
   int *p;
   p = a;
   ASSERT(3, *p + *(p + 1));

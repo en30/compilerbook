@@ -14,39 +14,33 @@ bool is_lvar_pointer(Node *node) {
   return (node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR);
 }
 
-bool is_lvar_array_addr(Node *node) {
-  return (node->kind == ND_ADDR && node->lhs->kind == ND_LVAR &&
-          node->lhs->lvar->type->ty == TY_ARRAY);
+bool is_lvar_array(Node *node) {
+  return (node->kind == ND_LVAR && node->lvar->type->ty == TY_ARRAY);
 }
 bool is_gvar_pointer(Node *node) {
   return (node->kind == ND_GVAR && node->gvar->type->ty == TY_PTR);
 }
 
-bool is_gvar_array_addr(Node *node) {
-  return (node->kind == ND_ADDR && node->lhs->kind == ND_GVAR &&
-          node->lhs->gvar->type->ty == TY_ARRAY);
+bool is_gvar_array(Node *node) {
+  return (node->kind == ND_GVAR && node->gvar->type->ty == TY_ARRAY);
 }
 
 bool is_addr(Node *node) {
-  return is_lvar_pointer(node) || is_lvar_array_addr(node) ||
-         is_gvar_pointer(node) || is_gvar_array_addr(node);
+  return is_lvar_pointer(node) || is_lvar_array(node) ||
+         is_gvar_pointer(node) || is_gvar_array(node);
 }
 
 int stride(Node *node) {
   if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_CHAR)
     return 1;
   if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_lvar_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_CHAR)
-    return 1;
-  if (is_lvar_array_addr(node) && node->lhs->lvar->type->ptr_to->ty == TY_INT)
-    return 4;
+  if (is_lvar_array(node) && node->lvar->type->ptr_to->ty == TY_CHAR) return 1;
+  if (is_lvar_array(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
   if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_CHAR)
     return 1;
   if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_gvar_array_addr(node) && node->lhs->gvar->type->ptr_to->ty == TY_CHAR)
-    return 1;
-  if (is_gvar_array_addr(node) && node->lhs->gvar->type->ptr_to->ty == TY_INT)
-    return 4;
+  if (is_gvar_array(node) && node->gvar->type->ptr_to->ty == TY_CHAR) return 1;
+  if (is_gvar_array(node) && node->gvar->type->ptr_to->ty == TY_INT) return 4;
   return 8;
 }
 
@@ -105,11 +99,11 @@ void gen(Node *node) {
       return;
     case ND_GVAR:
       gen_lval(node);
-      load_var(node);
+      if (node->type->ty != TY_ARRAY) load_var(node);
       return;
     case ND_LVAR:
       gen_lval(node);
-      load_var(node);
+      if (node->type->ty != TY_ARRAY) load_var(node);
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
@@ -222,13 +216,13 @@ void gen(Node *node) {
         printf("  .string \"%s\"\n", node->gvar->init_str);
       } else if (node->lhs->kind == ND_NUM) {
         printf("  .long %d\n", node->lhs->val);
+      } else if (node->lhs->kind == ND_GVAR) {
+        if (node->lhs->gvar->init_str) {
+          printf("  .string \"%s\"\n", node->lhs->gvar->init_str);
+        }
       } else if (node->lhs->kind == ND_ADDR) {
         GVar *g = node->lhs->lhs->gvar;
-        if (g->init_str) {
-          printf("  .string \"%s\"\n", g->init_str);
-        } else {
-          printf("  .quad %.*s\n", g->len, g->name);
-        }
+        printf("  .quad %.*s\n", g->len, g->name);
       } else if (node->lhs->kind == ND_ADD) {
         Node *lhs = node->lhs->lhs;
         Node *rhs = node->lhs->rhs;
@@ -238,7 +232,7 @@ void gen(Node *node) {
           rhs = tmp;
         }
 
-        printf("  .quad %.*s + %d\n", lhs->lhs->gvar->len, lhs->lhs->gvar->name,
+        printf("  .quad %.*s + %d\n", lhs->gvar->len, lhs->gvar->name,
                rhs->val);
       } else if (node->lhs->kind == ND_INITLIST) {
         Node *n = node->lhs->next;

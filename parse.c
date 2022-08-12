@@ -47,8 +47,12 @@ Type *binary_operation_result_type(Node *node) {
       Type *rt = node->rhs->type;
       if (lt->ty == TY_PTR) {
         return lt;
+      } else if (lt->ty == TY_ARRAY) {
+        return new_pointer_to(lt->ptr_to);
       } else if (rt->ty == TY_PTR) {
         return rt;
+      } else if (rt->ty == TY_ARRAY) {
+        return new_pointer_to(rt->ptr_to);
       } else if (type_size(lt) > type_size(rt)) {
         return lt;
       } else {
@@ -73,6 +77,12 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     node->type = new_array_of(&int_type, 0);
   } else if (node->kind == ND_ASSIGN) {
     node->type = node->lhs->type->ptr_to;
+  } else if (node->kind == ND_ADDR) {
+    if (node->lhs->type->ty == TY_ARRAY) {
+      node->type = new_pointer_to(node->lhs->type->ptr_to);
+    } else {
+      node->type = new_pointer_to(node->lhs->type);
+    }
   } else {
     node->type = &int_type;
   }
@@ -369,11 +379,10 @@ Node *comptime_eval(Node *node) {
 }
 
 bool node_is_string_literal(Node *node) {
-  return node->kind == ND_ADDR && node->lhs->kind == ND_GVAR &&
-         node->lhs->gvar->init_str;
+  return node->kind == ND_GVAR && node->gvar->init_str;
 }
 
-GVar *string_literal_gvar(Node *node) { return node->lhs->gvar; }
+GVar *string_literal_gvar(Node *node) { return node->gvar; }
 
 Node *gvardec() {
   Node *node = calloc(1, sizeof(Node));
@@ -446,8 +455,7 @@ Node *block() {
       def_lvar(tok, type);
       current->next = lvar(tok);
       if (consume_punct("=")) {
-        Node *arr_node = new_node(ND_ADDR, current->next, NULL);
-        arr_node->type = new_pointer_to(current->next->type->ptr_to);
+        Node *arr_node = current->next;
         if (consume_punct("{")) {
           int i = 0;
           if (!consume_punct("}")) {
@@ -467,17 +475,26 @@ Node *block() {
                   expr());
               i++;
             }
-            type_array_resize(arr_node->lhs->lvar->type, i);
+            type_array_resize(arr_node->lvar->type, i);
             expect_punct("}");
           }
         } else {
-          current = current->next;
+          Node *lvar_node = current->next;
           Node *e = equality();
           if (node_is_string_literal(e)) {
-            type_assign(current->lvar->type, string_literal_gvar(e)->type);
-            e = e->lhs;
+            type_assign(lvar_node->lvar->type, string_literal_gvar(e)->type);
+            for (int i = 0; i < string_literal_gvar(e)->type->array_size; i++) {
+              current = current->next;
+              current->next = new_node(
+                  ND_ASSIGN,
+                  new_node(ND_DEREF,
+                           new_node(ND_ADD, lvar_node, new_node_num(i)), NULL),
+                  new_node(ND_DEREF, new_node(ND_ADD, e, new_node_num(i)),
+                           NULL));
+            }
+          } else {
+            current->next = new_node(ND_ASSIGN, lvar(tok), e);
           }
-          current->next = new_node(ND_ASSIGN, lvar(tok), e);
         }
       }
       expect_punct(";");
@@ -609,23 +626,14 @@ Node *mul() {
 Node *unary() {
   if (consume(TK_SIZEOF)) {
     Node *node = unary();
-    Type *type = node->type;
-    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY)
-      return new_node_num(type_size(node->lhs->type));
-    return new_node_num(type_size(type));
+    return new_node_num(type_size(node->type));
   }
   if (consume_punct("+")) return unary();
   if (consume_punct("-")) return new_node(ND_SUB, new_node_num(0), unary());
   if (consume_punct("*")) return new_node(ND_DEREF, unary(), NULL);
   if (consume_punct("&")) {
-    Node *node = unary();
-    if (node->kind == ND_ADDR && node->lhs->type->ty == TY_ARRAY) {
-      node->type = new_pointer_to(node->lhs->type->ptr_to);
-      return node;
-    }
-    Node *res = new_node(ND_ADDR, node, NULL);
-    res->type = new_pointer_to(res->lhs->type);
-    return res;
+    Node *node = new_node(ND_ADDR, unary(), NULL);
+    return node;
   }
 
   Node *node = primary();
@@ -675,8 +683,6 @@ Node *str(Token *tok) {
   node->gvar = gvar;
   node->type = gvar->type;
 
-  node = new_node(ND_ADDR, node, NULL);
-  node->type = new_pointer_to(node->lhs->type->ptr_to);
   return node;
 }
 
@@ -720,11 +726,6 @@ Node *primary() {
     } else {
       Node *node = lvar(tok);
       if (!node) node = gvar(tok);
-
-      if (node->type->ty == TY_ARRAY) {
-        node = new_node(ND_ADDR, node, NULL);
-        node->type = new_pointer_to(node->lhs->type->ptr_to);
-      }
       return node;
     }
   }
