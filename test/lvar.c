@@ -1,5 +1,7 @@
 #include "test.h"
 
+int f() { return 42; }
+
 int main() {
   int a;
   ASSERT(3, a = 3);
@@ -25,6 +27,19 @@ int main() {
   a = 3;
   b = 5 * 6 - 8;
   ASSERT(14, a + b / 2);
+
+  int c = f();
+  ASSERT(42, c);
+
+  char msg[] = "abc";
+  ASSERT(4, sizeof(msg));
+  ASSERT(97, msg[0]);
+
+  int x[] = {1, 2, f()};
+  ASSERT(12, sizeof(x));
+  ASSERT(1, x[0]);
+  ASSERT(2, x[1]);
+  ASSERT(42, x[2]);
 
   printf("\nOK\n");
   return 0;

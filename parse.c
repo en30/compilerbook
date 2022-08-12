@@ -81,6 +81,8 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     node->type = binary_operation_result_type(node);
   } else if (node->kind == ND_INITLIST) {
     node->type = new_array_of(&int_type, 0);
+  } else if (node->kind == ND_ASSIGN) {
+    node->type = node->lhs->type->ptr_to;
   } else {
     node->type = &int_type;
   }
@@ -414,7 +416,7 @@ stmt       = expr ";"
            | "for" "(" expr? ";" expr? ";" expr? ")" stmt
            | "return" expr ";"
 block      = "{" (declaration | stmt)* "}"
-declaration= varspec ";"
+declaration= varspec ("=" initializer)? ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*
@@ -690,6 +692,41 @@ Node *block() {
     if (consume_varspec(&type, &tok)) {
       def_lvar(tok, type);
       current->next = lvar(tok);
+      if (consume("=")) {
+        Node *arr_node = new_node(ND_ADDR, current->next, NULL);
+        arr_node->type = new_pointer_to(current->next->type->ptr_to);
+        if (consume("{")) {
+          int i = 0;
+          if (!consume("}")) {
+            current = current->next;
+            current->next = new_node(
+                ND_ASSIGN,
+                new_node(ND_DEREF, new_node(ND_ADD, arr_node, new_node_num(i)),
+                         NULL),
+                expr());
+            i++;
+            while (consume(",") && !peek("}")) {
+              current = current->next;
+              current->next = new_node(
+                  ND_ASSIGN,
+                  new_node(ND_DEREF,
+                           new_node(ND_ADD, arr_node, new_node_num(i)), NULL),
+                  expr());
+              i++;
+            }
+            arr_node->lhs->lvar->type->array_size = i;
+            expect("}");
+          }
+        } else {
+          current = current->next;
+          Node *e = equality();
+          if (node_is_string_literal(e)) {
+            type_assign(current->lvar->type, string_literal_gvar(e)->type);
+            e = e->lhs;
+          }
+          current->next = new_node(ND_ASSIGN, lvar(tok), e);
+        }
+      }
       expect(";");
     } else {
       current->next = stmt();
@@ -756,7 +793,6 @@ Node *assign() {
   Node *node = equality();
   if (consume("=")) {
     node = new_node(ND_ASSIGN, node, assign());
-    node->type = node->lhs->type->ptr_to;
   }
   return node;
 }
