@@ -79,6 +79,8 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     if (!node->type) node->type = node->lhs->type;
   } else if (node->kind == ND_ADD || node->kind == ND_SUB) {
     node->type = binary_operation_result_type(node);
+  } else if (node->kind == ND_INITLIST) {
+    node->type = new_array_of(&int_type, 0);
   } else {
     node->type = &int_type;
   }
@@ -401,7 +403,10 @@ void def_lvar(Token *tok, Type *type) {
 /*
 program    = (func | gvardec)*
 func       = varspec "(" (varspec ("," varspec)*)? ")" block
-gvardec    = varspec ("=" equality)? ";"
+gvardec    = varspec ("=" initializer)? ";"
+initializer= "{" (initlist ","?)? "}"
+           | equality
+initlist   = equality ("," equality)*
 stmt       = expr ";"
            | block
            | "if" "(" expr ")" stmt ("else" stmt)?
@@ -429,6 +434,8 @@ varspec    = typespec ident ("[" num? "]")*
 Node *program();
 Node *func();
 Node *gvardec();
+Node *initializer();
+Node *initlist();
 Node *stmt();
 Node *block();
 Node *declaration();
@@ -630,9 +637,11 @@ Node *gvardec() {
       error_at(token->str, "既にグローバル変数が初期化済みです");
     }
     node->gvar->initialized = true;
-    node->lhs = comptime_eval(equality());
+    node->lhs = initializer();
     if (node_is_string_literal(node->lhs)) {
       type_assign(node->gvar->type, string_literal_gvar(node->lhs)->type);
+    } else if (node->lhs->kind == ND_INITLIST) {
+      type_assign(node->gvar->type, node->lhs->type);
     }
   } else {
     node->kind = ND_GVARDEC;
@@ -642,6 +651,30 @@ Node *gvardec() {
   }
 
   expect(";");
+  return node;
+}
+
+Node *initializer() {
+  if (consume("{")) {
+    if (consume("}")) return new_node(ND_INITLIST, NULL, NULL);
+    Node *node = initlist();
+    expect("}");
+    return node;
+  } else {
+    return comptime_eval(equality());
+  }
+}
+
+Node *initlist() {
+  Node *node = new_node(ND_INITLIST, NULL, NULL);
+  node->next = comptime_eval(equality());
+  node->type->array_size++;
+  Node *current = node->next;
+  while (consume(",") && !peek("}")) {
+    current->next = comptime_eval(equality());
+    current = current->next;
+    node->type->array_size++;
+  }
   return node;
 }
 

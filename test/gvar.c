@@ -8,6 +8,7 @@ int d = 2 + 3;
 char e[] = "abc";
 int *f = &a;
 char *h = e + 3;
+int x[5] = {1, 2, 1 + 2};
 
 int g() {
   int a;
@@ -42,6 +43,13 @@ int main() {
   ASSERT(8, sizeof(h));
   ASSERT(97, *(h - 3));
   ASSERT(0, *h);
+
+  ASSERT(20, sizeof(x));
+  ASSERT(1, x[0]);
+  ASSERT(2, x[1]);
+  ASSERT(3, x[2]);
+  ASSERT(0, x[3]);
+  ASSERT(0, x[4]);
 
   printf("\nOK\n");
   return 0;

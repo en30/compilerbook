@@ -240,6 +240,16 @@ void gen(Node *node) {
 
         printf("  .quad %.*s + %d\n", lhs->lhs->gvar->len, lhs->lhs->gvar->name,
                rhs->val);
+      } else if (node->lhs->kind == ND_INITLIST) {
+        Node *n = node->lhs->next;
+        for (int i = 0; i < node->gvar->type->array_size; i++) {
+          if (n) {
+            printf("  .long %d\n", n->val);
+            n = n->next;
+          } else {
+            printf("  .long %d\n", 0);
+          }
+        }
       }
       return;
     case ND_FUNC:

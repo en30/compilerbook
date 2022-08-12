@@ -45,6 +45,7 @@ typedef enum {
   ND_FUNC,
   ND_ADDR,
   ND_DEREF,
+  ND_INITLIST,
 } NodeKind;
 
 typedef enum {
