@@ -7,36 +7,36 @@ LVar *locals;
 Node program_head;
 Node *strings;
 
-Type int_type = {TY_INT};
-Type char_type = {TY_CHAR};
+Type int_type = {.ty = TY_INT, .size = 4};
+Type char_type = {.ty = TY_CHAR, .size = 1};
 
 int UNK_ARRAY_SIZE = -1;
 
-int type_size(Type *type) {
-  switch (type->ty) {
-    case TY_CHAR:
-      return 1;
-    case TY_INT:
-      return 4;
-    case TY_PTR:
-      return 8;
-    case TY_ARRAY:
-      return type->array_size * type_size(type->ptr_to);
-  }
+int type_size(Type *type) { return type->size; }
+size_t type_array_size(Type *type) { return type->array_size; }
+void type_array_resize(Type *type, size_t array_size) {
+  type->array_size = array_size;
+  type->size = array_size * type->ptr_to->size;
+}
+
+void type_assign(Type *lhs, Type *rhs) {
+  if (lhs->array_size == UNK_ARRAY_SIZE)
+    type_array_resize(lhs, type_array_size(rhs));
 }
 
 Type *new_pointer_to(Type *target) {
   Type *type = calloc(1, sizeof(Type));
   type->ty = TY_PTR;
   type->ptr_to = target;
+  type->size = 8;
   return type;
 }
 
-Type *new_array_of(Type *target, size_t size) {
+Type *new_array_of(Type *target, size_t array_size) {
   Type *type = calloc(1, sizeof(Type));
   type->ty = TY_ARRAY;
   type->ptr_to = target;
-  type->array_size = size;
+  type_array_resize(type, array_size);
   return type;
 }
 
@@ -619,10 +619,6 @@ bool node_is_string_literal(Node *node) {
 
 GVar *string_literal_gvar(Node *node) { return node->lhs->gvar; }
 
-void type_assign(Type *lhs, Type *rhs) {
-  if (lhs->array_size == UNK_ARRAY_SIZE) lhs->array_size = rhs->array_size;
-}
-
 Node *gvardec() {
   Node *node = calloc(1, sizeof(Node));
 
@@ -670,13 +666,14 @@ Node *initializer() {
 Node *initlist() {
   Node *node = new_node(ND_INITLIST, NULL, NULL);
   node->next = comptime_eval(equality());
-  node->type->array_size++;
+  int l = 1;
   Node *current = node->next;
   while (consume(",") && !peek("}")) {
     current->next = comptime_eval(equality());
     current = current->next;
-    node->type->array_size++;
+    l++;
   }
+  type_array_resize(node->type, l);
   return node;
 }
 
@@ -714,7 +711,7 @@ Node *block() {
                   expr());
               i++;
             }
-            arr_node->lhs->lvar->type->array_size = i;
+            type_array_resize(arr_node->lhs->lvar->type, i);
             expect("}");
           }
         } else {

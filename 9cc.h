@@ -123,6 +123,7 @@ struct Type {
   TypeKind ty;
   struct Type *ptr_to;
   size_t array_size;
+  size_t size;
 };
 int type_size(Type *type);
 
