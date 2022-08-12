@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef enum {
-  TK_RESERVED,
+  TK_PUNCT,
   TK_IDENT,
   TK_NUM,
   TK_RETURN,
@@ -73,6 +73,13 @@ struct Token {
   char *str;
   int len;
 };
+bool at_eof();
+Token *peek_punct(char *op);
+Token *consume_punct(char *op);
+Token *expect_punct(char *op);
+Token *consume(TokenKind kind);
+Token *expect(TokenKind kind);
+int token_value(Token *token);
 
 struct Node {
   NodeKind kind;
@@ -128,6 +135,7 @@ struct Type {
 int type_size(Type *type);
 
 void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
 
 Token *tokenize(char *p);
 Node *parse();
