@@ -251,6 +251,10 @@ bool peek_func() {
   }
 }
 
+Node *subscript_operator(Node *x, Node *y) {
+  return new_node(ND_DEREF, new_node(ND_ADD, x, y), NULL);
+}
+
 Node *program() {
   Node *current = &program_head;
   while (!at_eof()) {
@@ -420,18 +424,14 @@ Node *block() {
           int i = 0;
           if (!consume_punct("}")) {
             current = current->next;
-            current->next = new_node(
-                ND_ASSIGN,
-                new_node(ND_DEREF, new_node(ND_ADD, arr_node, new_node_num(i)),
-                         NULL),
-                expr());
+            current->next =
+                new_node(ND_ASSIGN,
+                         subscript_operator(arr_node, new_node_num(i)), expr());
             i++;
             while (consume_punct(",") && !peek_punct("}")) {
               current = current->next;
               current->next = new_node(
-                  ND_ASSIGN,
-                  new_node(ND_DEREF,
-                           new_node(ND_ADD, arr_node, new_node_num(i)), NULL),
+                  ND_ASSIGN, subscript_operator(arr_node, new_node_num(i)),
                   expr());
               i++;
             }
@@ -446,11 +446,8 @@ Node *block() {
             for (int i = 0; i < string_literal_gvar(e)->type->array_size; i++) {
               current = current->next;
               current->next = new_node(
-                  ND_ASSIGN,
-                  new_node(ND_DEREF,
-                           new_node(ND_ADD, lvar_node, new_node_num(i)), NULL),
-                  new_node(ND_DEREF, new_node(ND_ADD, e, new_node_num(i)),
-                           NULL));
+                  ND_ASSIGN, subscript_operator(lvar_node, new_node_num(i)),
+                  subscript_operator(e, new_node_num(i)));
             }
           } else {
             current->next = new_node(ND_ASSIGN, lvar(tok), e);
@@ -598,7 +595,7 @@ Node *unary() {
 
   Node *node = primary();
   if (consume_punct("[")) {
-    node = new_node(ND_DEREF, new_node(ND_ADD, node, expr()), NULL);
+    node = subscript_operator(node, expr());
     expect_punct("]");
   }
 
