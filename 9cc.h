@@ -132,7 +132,18 @@ struct Type {
   size_t array_size;
   size_t size;
 };
+extern Type int_type;
+extern Type char_type;
+extern int UNK_ARRAY_SIZE;
+Type *new_pointer_to(Type *target);
+Type *new_array_of(Type *target, size_t array_size);
+bool is_effectively_pointer(Type *type);
 int type_size(Type *type);
+size_t type_array_size(Type *type);
+void type_array_resize(Type *type, size_t array_size);
+void type_assign(Type *lhs, Type *rhs);
+Type *type_add(Type *lhs, Type *rhs);
+Type *type_sub(Type *lhs, Type *rhs);
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);

@@ -7,7 +7,6 @@ int id() {
   return i++;
 }
 
-bool is_char(Node *node) { return node->type->ty == TY_CHAR; }
 bool is_int(Node *node) { return node->type->ty == TY_INT; }
 
 bool is_lvar_pointer(Node *node) {

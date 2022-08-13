@@ -6,85 +6,45 @@ LVar *locals;
 Node program_head;
 Node *strings;
 
-Type int_type = {.ty = TY_INT, .size = 4};
-Type char_type = {.ty = TY_CHAR, .size = 1};
-
-int UNK_ARRAY_SIZE = -1;
-
-int type_size(Type *type) { return type->size; }
-size_t type_array_size(Type *type) { return type->array_size; }
-void type_array_resize(Type *type, size_t array_size) {
-  type->array_size = array_size;
-  type->size = array_size * type->ptr_to->size;
-}
-
-void type_assign(Type *lhs, Type *rhs) {
-  if (lhs->array_size == UNK_ARRAY_SIZE)
-    type_array_resize(lhs, type_array_size(rhs));
-}
-
-Type *new_pointer_to(Type *target) {
-  Type *type = calloc(1, sizeof(Type));
-  type->ty = TY_PTR;
-  type->ptr_to = target;
-  type->size = 8;
-  return type;
-}
-
-Type *new_array_of(Type *target, size_t array_size) {
-  Type *type = calloc(1, sizeof(Type));
-  type->ty = TY_ARRAY;
-  type->ptr_to = target;
-  type_array_resize(type, array_size);
-  return type;
-}
-
-Type *binary_operation_result_type(Node *node) {
-  switch (node->kind) {
-    case ND_ADD:
-    case ND_SUB:
-      Type *lt = node->lhs->type;
-      Type *rt = node->rhs->type;
-      if (lt->ty == TY_PTR) {
-        return lt;
-      } else if (lt->ty == TY_ARRAY) {
-        return new_pointer_to(lt->ptr_to);
-      } else if (rt->ty == TY_PTR) {
-        return rt;
-      } else if (rt->ty == TY_ARRAY) {
-        return new_pointer_to(rt->ptr_to);
-      } else if (type_size(lt) > type_size(rt)) {
-        return lt;
-      } else {
-        return rt;
-      }
-    default:
-      error("二項演算がサポートされていません");
-  }
-}
-
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->lhs = lhs;
   node->rhs = rhs;
-  if (node->kind == ND_DEREF) {
-    node->type = node->lhs->type->ptr_to;
-    if (!node->type) node->type = node->lhs->type;
-  } else if (node->kind == ND_ADD || node->kind == ND_SUB) {
-    node->type = binary_operation_result_type(node);
-  } else if (node->kind == ND_INITLIST) {
-    node->type = new_array_of(&int_type, 0);
-  } else if (node->kind == ND_ASSIGN) {
-    node->type = node->lhs->type->ptr_to;
-  } else if (node->kind == ND_ADDR) {
-    if (node->lhs->type->ty == TY_ARRAY) {
-      node->type = new_pointer_to(node->lhs->type->ptr_to);
-    } else {
-      node->type = new_pointer_to(node->lhs->type);
-    }
-  } else {
-    node->type = &int_type;
+
+  switch (node->kind) {
+    case ND_DEREF:
+      node->type = node->lhs->type->ptr_to;
+      if (!node->type) node->type = node->lhs->type;
+      break;
+    case ND_ADD:
+      // int + ptr -> ptr + int
+      if (lhs->type->ty == TY_INT && is_effectively_pointer(rhs->type)) {
+        node->lhs = rhs;
+        node->rhs = lhs;
+      }
+      node->type = type_add(node->lhs->type, node->rhs->type);
+      break;
+    case ND_SUB:
+      node->type = type_sub(node->lhs->type, node->rhs->type);
+      break;
+    case ND_INITLIST:
+      node->type = new_array_of(&int_type, 0);
+      break;
+    case ND_ASSIGN:
+      node->type = node->lhs->type->ptr_to;
+      break;
+    case ND_ADDR:
+      if (node->lhs->type->ty == TY_ARRAY) {
+        node->type = new_pointer_to(node->lhs->type->ptr_to);
+      } else {
+        node->type = new_pointer_to(node->lhs->type);
+      }
+      break;
+
+    default:
+      node->type = &int_type;
+      break;
   }
   return node;
 }
