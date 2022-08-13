@@ -413,54 +413,57 @@ Node *block() {
   expect_punct("{");
   Node *current = node;
   while (!consume_punct("}")) {
-    Type *type;
-    Token *tok;
-    if (consume_varspec(&type, &tok)) {
-      def_lvar(tok, type);
-      current->next = lvar(tok);
-      if (consume_punct("=")) {
-        Node *arr_node = current->next;
-        if (consume_punct("{")) {
-          int i = 0;
-          if (!consume_punct("}")) {
-            current = current->next;
-            current->next =
-                new_node(ND_ASSIGN,
-                         subscript_operator(arr_node, new_node_num(i)), expr());
-            i++;
-            while (consume_punct(",") && !peek_punct("}")) {
-              current = current->next;
-              current->next = new_node(
-                  ND_ASSIGN, subscript_operator(arr_node, new_node_num(i)),
-                  expr());
-              i++;
-            }
-            type_array_resize(arr_node->lvar->type, i);
-            expect_punct("}");
-          }
-        } else {
-          Node *lvar_node = current->next;
-          Node *e = equality();
-          if (node_is_string_literal(e)) {
-            type_assign(lvar_node->lvar->type, string_literal_gvar(e)->type);
-            for (int i = 0; i < string_literal_gvar(e)->type->array_size; i++) {
-              current = current->next;
-              current->next = new_node(
-                  ND_ASSIGN, subscript_operator(lvar_node, new_node_num(i)),
-                  subscript_operator(e, new_node_num(i)));
-            }
-          } else {
-            current->next = new_node(ND_ASSIGN, lvar(tok), e);
-          }
-        }
-      }
-      expect_punct(";");
+    Node *node = declaration();
+    if (node) {
+      current->next = node;
     } else {
       current->next = stmt();
     }
-    current = current->next;
+    while (current->next) current = current->next;
   }
   return node;
+}
+
+Node *declaration() {
+  Type *type;
+  Token *tok;
+  if (!consume_varspec(&type, &tok)) return NULL;
+  def_lvar(tok, type);
+  Node head = {};
+  Node *current = &head;
+  current->next = lvar(tok);
+  if (consume_punct("=")) {
+    Node *arr_node = current->next;
+    if (consume_punct("{")) {
+      int i = 0;
+      if (!consume_punct("}")) {
+        do {
+          current = current->next;
+          current->next = new_node(
+              ND_ASSIGN, subscript_operator(arr_node, new_node_num(i)), expr());
+          i++;
+        } while (consume_punct(",") && !peek_punct("}"));
+        expect_punct("}");
+      }
+      type_array_resize(arr_node->lvar->type, i);
+    } else {
+      Node *lvar_node = current->next;
+      Node *e = equality();
+      if (node_is_string_literal(e)) {
+        type_assign(lvar_node->lvar->type, string_literal_gvar(e)->type);
+        for (int i = 0; i < string_literal_gvar(e)->type->array_size; i++) {
+          current = current->next;
+          current->next = new_node(
+              ND_ASSIGN, subscript_operator(lvar_node, new_node_num(i)),
+              subscript_operator(e, new_node_num(i)));
+        }
+      } else {
+        current->next = new_node(ND_ASSIGN, lvar(tok), e);
+      }
+    }
+  }
+  expect_punct(";");
+  return head.next;
 }
 
 Node *stmt() {
