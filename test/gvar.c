@@ -37,6 +37,8 @@ int main() {
 
   ASSERT(4, sizeof(e));
   ASSERT(97, e[0]);
+  ASSERT(98, e[1]);
+  ASSERT(99, e[2]);
   ASSERT(0, e[3]);
   ASSERT(8, sizeof(f));
   ASSERT(1, *f);

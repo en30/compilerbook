@@ -34,6 +34,9 @@ int main() {
   char msg[] = "abc";
   ASSERT(4, sizeof(msg));
   ASSERT(97, msg[0]);
+  ASSERT(98, msg[1]);
+  ASSERT(99, msg[2]);
+  ASSERT(0, msg[3]);
 
   int x[] = {1, 2, f()};
   ASSERT(12, sizeof(x));

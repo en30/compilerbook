@@ -34,7 +34,8 @@ Type *new_array_of(Type *target, size_t array_size) {
 }
 
 Type *type_add(Type *lhs, Type *rhs) {
-  if (is_effectively_pointer(lhs) && rhs->ty == TY_INT) return lhs;
+  if (is_effectively_pointer(lhs) && is_int(rhs))
+    return new_pointer_to(lhs->ptr_to);
   if (is_effectively_pointer(lhs) && is_effectively_pointer(rhs)) {
     error("invalid operation: ptr + ptr");
   }
@@ -42,7 +43,8 @@ Type *type_add(Type *lhs, Type *rhs) {
 }
 
 Type *type_sub(Type *lhs, Type *rhs) {
-  if (is_effectively_pointer(lhs) && rhs->ty == TY_INT) return lhs;
+  if (is_effectively_pointer(lhs) && is_int(rhs))
+    return new_pointer_to(lhs->ptr_to);
   if (is_effectively_pointer(lhs) && is_effectively_pointer(rhs)) {
     return &int_type;
   }
@@ -51,4 +53,14 @@ Type *type_sub(Type *lhs, Type *rhs) {
 
 bool is_effectively_pointer(Type *type) {
   return type->ty == TY_PTR || type->ty == TY_ARRAY;
+}
+
+bool is_int(Type *type) { return type->ty == TY_INT; }
+
+// かなりメモリに無駄が多くなってしまっているけれど、
+// align周りがよくわかっていないので余分にとっている
+int type_address_size(Type *type) {
+  if (type->ty == TY_ARRAY)
+    return type->array_size * type_address_size(type->ptr_to);
+  return 8;
 }

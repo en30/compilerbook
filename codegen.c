@@ -7,57 +7,6 @@ int id() {
   return i++;
 }
 
-bool is_int(Node *node) { return node->type->ty == TY_INT; }
-
-bool is_lvar_pointer(Node *node) {
-  return (node->kind == ND_LVAR && node->lvar->type->ty == TY_PTR);
-}
-
-bool is_lvar_array(Node *node) {
-  return (node->kind == ND_LVAR && node->lvar->type->ty == TY_ARRAY);
-}
-bool is_gvar_pointer(Node *node) {
-  return (node->kind == ND_GVAR && node->gvar->type->ty == TY_PTR);
-}
-
-bool is_gvar_array(Node *node) {
-  return (node->kind == ND_GVAR && node->gvar->type->ty == TY_ARRAY);
-}
-
-bool is_addr(Node *node) {
-  return is_lvar_pointer(node) || is_lvar_array(node) ||
-         is_gvar_pointer(node) || is_gvar_array(node);
-}
-
-int stride(Node *node) {
-  if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_CHAR)
-    return 1;
-  if (is_lvar_pointer(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_lvar_array(node) && node->lvar->type->ptr_to->ty == TY_CHAR) return 1;
-  if (is_lvar_array(node) && node->lvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_CHAR)
-    return 1;
-  if (is_gvar_pointer(node) && node->gvar->type->ptr_to->ty == TY_INT) return 4;
-  if (is_gvar_array(node) && node->gvar->type->ptr_to->ty == TY_CHAR) return 1;
-  if (is_gvar_array(node) && node->gvar->type->ptr_to->ty == TY_INT) return 4;
-  return 8;
-}
-
-int byte_size(Type *type) {
-  switch (type->ty) {
-    case TY_CHAR:
-      return 8;
-    case TY_INT:
-      return 8;
-    case TY_PTR:
-      return 8;
-    case TY_ARRAY:
-      return type->array_size * byte_size(type->ptr_to);
-    default:
-      break;
-  }
-}
-
 void load_var(Node *node) {
   printf("  pop rax\n");
   if (type_size(node->type) == 1) {
@@ -110,7 +59,7 @@ void gen(Node *node) {
 
       printf("  pop rdi\n");
       printf("  pop rax\n");
-      if (byte_size(node->lhs->type) == 1) {
+      if (type_size(node->lhs->type) == 1) {
         printf("  mov [rax], dil\n");
       } else {
         printf("  mov [rax], rdi\n");
@@ -205,7 +154,7 @@ void gen(Node *node) {
       printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
       printf(".bss\n");
       printf("%.*s:\n", node->gvar->len, node->gvar->name);
-      printf("  .zero %d\n", byte_size(node->gvar->type));
+      printf("  .zero %d\n", type_address_size(node->gvar->type));
       return;
     case ND_GVARDEF:
       printf(".globl %.*s\n", node->gvar->len, node->gvar->name);
@@ -223,16 +172,9 @@ void gen(Node *node) {
         GVar *g = node->lhs->lhs->gvar;
         printf("  .quad %.*s\n", g->len, g->name);
       } else if (node->lhs->kind == ND_ADD) {
-        Node *lhs = node->lhs->lhs;
-        Node *rhs = node->lhs->rhs;
-        if (lhs->kind == ND_NUM) {
-          Node *tmp = lhs;
-          lhs = rhs;
-          rhs = tmp;
-        }
-
-        printf("  .quad %.*s + %d\n", lhs->gvar->len, lhs->gvar->name,
-               rhs->val);
+        // ptr + int
+        printf("  .quad %.*s + %d\n", node->lhs->lhs->gvar->len,
+               node->lhs->lhs->gvar->name, node->lhs->rhs->val);
       } else if (node->lhs->kind == ND_INITLIST) {
         Node *n = node->lhs->next;
         for (int i = 0; i < node->gvar->type->array_size; i++) {
@@ -252,8 +194,10 @@ void gen(Node *node) {
 
       // プロローグ
       int sz = 0;
-      for (LVar *l = node->locals; l; l = l->next) sz += byte_size(l->type);
-      for (Node *n = node->args; n; n = n->next) sz += byte_size(n->lvar->type);
+      for (LVar *l = node->locals; l; l = l->next)
+        sz += type_address_size(l->type);
+      for (Node *n = node->args; n; n = n->next)
+        sz += type_address_size(n->lvar->type);
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
       printf("  sub rsp, %d\n", sz);
@@ -293,20 +237,25 @@ void gen(Node *node) {
 
   switch (node->kind) {
     case ND_ADD:
-      if (is_addr(node->lhs) && is_int(node->rhs)) {
-        printf("  imul rdi, %d\n", stride(node->lhs));
-      } else if (is_int(node->lhs) && is_addr(node->rhs)) {
-        printf("  imul rax, %d\n", stride(node->rhs));
-      }
+      // ptr + i -> ptr + i * size
+      if (is_effectively_pointer(node->lhs->type) && is_int(node->rhs->type))
+        printf("  imul rdi, %ld\n", node->lhs->type->ptr_to->size);
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:
-      if (is_addr(node->lhs) && is_int(node->rhs)) {
-        printf("  imul rdi, %d\n", stride(node->lhs));
-      } else if (is_int(node->lhs) && is_addr(node->rhs)) {
-        printf("  imul rax, %d\n", stride(node->rhs));
+      // ptr - i -> ptr - i * size
+      if (is_effectively_pointer(node->lhs->type) && is_int(node->rhs->type)) {
+        printf("  imul rdi, %ld\n", node->lhs->type->ptr_to->size);
       }
       printf("  sub rax, rdi\n");
+
+      // ptr - ptr -> (ptr - ptr) / size
+      if (is_effectively_pointer(node->lhs->type) &&
+          is_effectively_pointer(node->rhs->type)) {
+        printf("  mov rdi, %ld\n", node->lhs->type->ptr_to->size);
+        printf("  cqo\n");
+        printf("  idiv rdi\n");
+      }
       break;
     case ND_MUL:
       printf("  imul rax, rdi\n");

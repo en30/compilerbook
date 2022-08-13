@@ -6,6 +6,14 @@ LVar *locals;
 Node program_head;
 Node *strings;
 
+Node *new_node_num(int val) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_NUM;
+  node->val = val;
+  node->type = &int_type;
+  return node;
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -19,7 +27,7 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
       break;
     case ND_ADD:
       // int + ptr -> ptr + int
-      if (lhs->type->ty == TY_INT && is_effectively_pointer(rhs->type)) {
+      if (is_int(lhs->type) && is_effectively_pointer(rhs->type)) {
         node->lhs = rhs;
         node->rhs = lhs;
       }
@@ -46,14 +54,6 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
       node->type = &int_type;
       break;
   }
-  return node;
-}
-
-Node *new_node_num(int val) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_NUM;
-  node->val = val;
-  node->type = &int_type;
   return node;
 }
 
@@ -323,10 +323,10 @@ int eval_constexp(Node *node) {
   }
 }
 
-int comptimeops[] = {ND_ADD, ND_SUB, ND_MUL, ND_DIV,
-                     ND_EQ,  ND_NE,  ND_LT,  ND_LE};
 Node *comptime_eval(Node *node) {
-  int l = sizeof(comptimeops) / sizeof(ND_ADD);
+  static int comptimeops[] = {ND_ADD, ND_SUB, ND_MUL, ND_DIV,
+                              ND_EQ,  ND_NE,  ND_LT,  ND_LE};
+  static int l = sizeof(comptimeops) / sizeof(ND_ADD);
   for (int i = 0; i < l; i++) {
     if (node->kind != comptimeops[i]) continue;
     if (node->lhs->kind == ND_NUM && node->rhs->kind == ND_NUM)
