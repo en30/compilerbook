@@ -117,7 +117,7 @@ void def_lvar(Token *tok, Type *type) {
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
-  lvar->offset = (locals ? locals->offset : 0) + 8;
+  lvar->offset = (locals ? locals->offset : 0) + type_address_size(type);
   lvar->type = type;
   locals = lvar;
 }

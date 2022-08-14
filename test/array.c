@@ -30,6 +30,11 @@ int main() {
   *(a + plus(0, 1)) = 42;
   ASSERT(42, *(a + 1));
 
+  b[0][0] = 1;
+  b[1][0] = 2;
+  ASSERT(1, b[0][0]);
+  ASSERT(2, b[1][0]);
+
   printf("\nOK\n");
   return 0;
 }
