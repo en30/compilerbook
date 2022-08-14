@@ -10,8 +10,8 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   return tok;
 }
 
-char *token_kind_name(Token *token) {
-  switch (token->kind) {
+char *kind_name(TokenKind kind) {
+  switch (kind) {
     case TK_PUNCT:
       return "punctuator";
     case TK_IDENT:
@@ -99,10 +99,11 @@ Token *tokenize(char *p) {
   Token head;
   head.next = NULL;
   Token *cur = &head;
-  static char *kw[] = {"sizeof", "char", "int",   "return",
-                       "if",     "else", "while", "for"};
-  static int kind[] = {TK_SIZEOF, TK_CHAR, TK_INT,   TK_RETURN,
-                       TK_IF,     TK_ELSE, TK_WHILE, TK_FOR};
+  static char *kw[] = {
+      "sizeof", "char", "int", "return", "if", "else", "while", "for", "struct",
+  };
+  static int kind[] = {TK_SIZEOF, TK_CHAR,  TK_INT, TK_RETURN, TK_IF,
+                       TK_ELSE,   TK_WHILE, TK_FOR, TK_STRUCT};
 
   while (*p) {
     if (isspace(*p)) {
@@ -222,10 +223,12 @@ Token *consume(TokenKind kind) {
 
 Token *expect(TokenKind kind) {
   if (token->kind != kind)
-    error_at(token->str, "%sではありません。", token_kind_name(token));
+    error_at(token->str, "%sではありません。", kind_name(kind));
   Token *tok = token;
   token = token->next;
   return tok;
 }
+
+bool peek(TokenKind kind) { return token->kind == kind; }
 
 int token_value(Token *token) { return token->val; }

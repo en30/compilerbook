@@ -33,6 +33,26 @@ Type *new_array_of(Type *target, size_t array_size) {
   return type;
 }
 
+Type *new_anonymous_struct() {
+  Type *t = calloc(1, sizeof(Type));
+  t->ty = TY_STRUCT;
+  return t;
+}
+
+Type *new_struct(Token *tok) {
+  Type *t = calloc(1, sizeof(Type));
+  t->ty = TY_STRUCT;
+  t->name = tok;
+  return t;
+}
+
+void *set_member(Type *t, Member *member) {
+  t->member = member;
+  for (Member *m = member; m; m = m->next) {
+    t->size += type_size(m->type);
+  }
+}
+
 Type *type_add(Type *lhs, Type *rhs) {
   if (is_effectively_pointer(lhs) && is_int(rhs))
     return new_pointer_to(lhs->ptr_to);

@@ -5,6 +5,8 @@ GVar *globals;
 LVar *locals;
 Node program_head;
 Node *strings;
+Type structs_head = {};
+Type *structs = &structs_head;
 
 Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
@@ -121,35 +123,40 @@ void def_lvar(Token *tok, Type *type) {
 }
 
 /*
-program    = (func | gvardec)*
-func       = varspec "(" (varspec ("," varspec)*)? ")" block
-gvardec    = varspec ("=" initializer)? ";"
-initializer= "{" (initlist ","?)? "}"
-           | equality
-initlist   = equality ("," equality)*
-stmt       = expr ";"
-           | block
-           | "if" "(" expr ")" stmt ("else" stmt)?
-           | "while" "(" expr ")" stmt
-           | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-           | "return" expr ";"
-block      = "{" (declaration | stmt)* "}"
-declaration= varspec ("=" initializer)? ";"
-expr       = assign
-assign     = equality ("=" assign)?
-equality   = relational ("==" relational | "!=" relational)*
-relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-add        = mul ("+" mul | "-" mul)*
-mul        = unary ("*" unary | "/" unary)*
-unary      = "sizeof" unary
-           | ("+" | "-" | "*" | "&") unary
-           | primary ("[" expr "]")?
-primary    = num
-           | str
-           | ident ( "(" (expr ("," expr)*)? ")" )?
-           | "(" expr ")"
-typespec   = ("int" | "char") "*"*
-varspec    = typespec ident ("[" num? "]")*
+program          = (struct_spec ";" | func | gvardec)*
+func             = varspec "(" (varspec ("," varspec)*)? ")" block
+gvardec          = varspec ("=" initializer)? ";"
+initializer      = "{" (initlist ","?)? "}"
+                 | equality
+initlist         = equality ("," equality)*
+stmt             = expr ";"
+                 | block
+                 | "if" "(" expr ")" stmt ("else" stmt)?
+                 | "while" "(" expr ")" stmt
+                 | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                 | "return" expr ";"
+block            = "{" (declaration | stmt)* "}"
+declaration      = varspec ("=" initializer)? ";"
+expr             = assign
+assign           = equality ("=" assign)?
+equality         = relational ("==" relational | "!=" relational)*
+relational       = add ("<" add | "<=" add | ">" add | ">=" add)*
+add              = mul ("+" mul | "-" mul)*
+mul              = unary ("*" unary | "/" unary)*
+unary            = "sizeof" unary
+                 | ("+" | "-" | "*" | "&") unary
+                 | primary ("[" expr "]")?
+primary          = num
+                 | str
+                 | ident ( "(" (expr ("," expr)*)? ")" )?
+                 | "(" expr ")"
+typespec         = ("int" | "char" | struct_spec) "*"*
+struct_spec      = "struct" (
+                  identifier
+                  | identifier? "{" struct_decl_list "}"
+                 )
+struct_decl_list = (varspec ";")*
+varspec          = typespec ident ("[" num? "]")*
 */
 Node *program();
 Node *func();
@@ -169,46 +176,84 @@ Node *unary();
 Node *primary();
 Node *lvar();
 void typespec();
+Type *struct_spec();
+
+Type *def_struct(Token *tok) {
+  if (!tok) return new_anonymous_struct();
+
+  Type *t = new_struct(tok);
+  structs->next = t;
+  structs = structs->next;
+  return t;
+}
+
+Type *find_struct(Token *tok) {
+  if (!tok) return NULL;
+
+  for (Type *t = structs_head.next; t; t = t->next)
+    if (t->name->len == tok->len && !memcmp(tok->str, t->name->str, tok->len))
+      return t;
+  return NULL;
+}
+
+void expect_varspec(Type **t, Token **tok);
+Type *consume_typespec_pre() {
+  if (consume(TK_CHAR)) {
+    return &char_type;
+  } else if (consume(TK_INT)) {
+    return &int_type;
+  } else if (peek(TK_STRUCT)) {
+    return struct_spec();
+  }
+  return NULL;
+}
+
+Type *struct_spec() {
+  expect(TK_STRUCT);
+  Token *ident = consume(TK_IDENT);
+  Type *t = find_struct(ident);
+
+  if (!consume_punct("{")) {
+    if (!t) t = def_struct(ident);
+    return t;
+  }
+
+  if (t) error_at(ident->str, "既にstructが定義済みです");
+
+  t = def_struct(ident);
+  Member head = {};
+  Member *current = &head;
+  while (!consume_punct("}")) {
+    Type *type;
+    Token *tok;
+    expect_varspec(&type, &tok);
+    Member *m = calloc(1, sizeof(Member));
+    m->name = tok;
+    m->type = type;
+    m->offset = current == &head
+                    ? 0
+                    : current->offset + type_address_size(current->type);
+    current->next = m;
+    current = current->next;
+    expect_punct(";");
+  }
+  set_member(t, head.next);
+  return t;
+}
 
 Type *consume_typespec() {
-  Type *type;
-  switch (token->kind) {
-    case TK_CHAR:
-      type = &char_type;
-      break;
-    case TK_INT:
-      type = &int_type;
-      break;
-    default:
-      return NULL;
-  }
-  token = token->next;
+  Type *type = consume_typespec_pre();
+  if (!type) return NULL;
+
   while (consume_punct("*")) {
     type = new_pointer_to(type);
   }
-
   return type;
 }
 
 Type *expect_typespec() {
-  Type *type;
-  switch (token->kind) {
-    case TK_CHAR:
-      type = &char_type;
-      break;
-    case TK_INT:
-      type = &int_type;
-      break;
-    default:
-      error_at(token->str, "サポートされていない型です");
-      return NULL;
-  }
-
-  token = token->next;
-  while (consume_punct("*")) {
-    type = new_pointer_to(type);
-  }
-
+  Type *type = consume_typespec();
+  if (!type) error_at(token->str, "サポートされていない型です");
   return type;
 }
 
@@ -258,7 +303,15 @@ Node *subscript_operator(Node *x, Node *y) {
 Node *program() {
   Node *current = &program_head;
   while (!at_eof()) {
-    Node *next = peek_func() ? func() : gvardec();
+    Node *next = NULL;
+    if (peek(TK_STRUCT)) {
+      struct_spec();
+      expect_punct(";");
+    } else if (peek_func()) {
+      next = func();
+    } else {
+      next = gvardec();
+    }
     if (!next) continue;
     current->next = next;
     current = current->next;

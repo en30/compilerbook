@@ -19,6 +19,7 @@ typedef enum {
   TK_INT,
   TK_SIZEOF,
   TK_STR,
+  TK_STRUCT,
 } TokenKind;
 
 typedef enum {
@@ -53,6 +54,7 @@ typedef enum {
   TY_INT,
   TY_PTR,
   TY_ARRAY,
+  TY_STRUCT,
 } TypeKind;
 
 typedef struct Token Token;
@@ -65,6 +67,8 @@ typedef struct LVar LVar;
 struct LVar;
 typedef struct Type Type;
 struct Type;
+typedef struct Member Member;
+struct Member;
 
 struct Token {
   TokenKind kind;
@@ -79,6 +83,7 @@ Token *consume_punct(char *op);
 Token *expect_punct(char *op);
 Token *consume(TokenKind kind);
 Token *expect(TokenKind kind);
+bool peek(TokenKind kind);
 int token_value(Token *token);
 
 struct Node {
@@ -131,12 +136,28 @@ struct Type {
   struct Type *ptr_to;
   size_t array_size;
   size_t size;
+
+  // struct
+  Token *name;
+  Member *member;
+  Type *next;
 };
+
+struct Member {
+  Token *name;
+  Type *type;
+  int offset;
+  Member *next;
+};
+
 extern Type int_type;
 extern Type char_type;
 extern int UNK_ARRAY_SIZE;
 Type *new_pointer_to(Type *target);
 Type *new_array_of(Type *target, size_t array_size);
+Type *new_struct(Token *tok);
+void *set_member(Type *strct, Member *member);
+Type *new_anonymous_struct();
 bool is_int(Type *type);
 bool is_effectively_pointer(Type *type);
 int type_size(Type *type);
