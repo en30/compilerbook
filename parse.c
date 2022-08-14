@@ -145,7 +145,10 @@ add              = mul ("+" mul | "-" mul)*
 mul              = unary ("*" unary | "/" unary)*
 unary            = "sizeof" unary
                  | ("+" | "-" | "*" | "&") unary
-                 | primary ("[" expr "]")?
+                 | primary (
+                    "[" expr "]"
+                    | "." ident
+                   )*
 primary          = num
                  | str
                  | ident ( "(" (expr ("," expr)*)? ")" )?
@@ -230,9 +233,8 @@ Type *struct_spec() {
     Member *m = calloc(1, sizeof(Member));
     m->name = tok;
     m->type = type;
-    m->offset = current == &head
-                    ? 0
-                    : current->offset + type_address_size(current->type);
+    m->offset =
+        current == &head ? 0 : (current->offset + type_size(current->type));
     current->next = m;
     current = current->next;
     expect_punct(";");
@@ -650,12 +652,23 @@ Node *unary() {
   }
 
   Node *node = primary();
-  if (consume_punct("[")) {
-    node = subscript_operator(node, expr());
-    expect_punct("]");
+  for (;;) {
+    if (consume_punct("[")) {
+      node = subscript_operator(node, expr());
+      expect_punct("]");
+    } else if (consume_punct(".")) {
+      Node *m = new_node(ND_MEMBER, node, NULL);
+      Token *ident = expect(TK_IDENT);
+      m->member = find_member(node->type, ident);
+      if (!m->member) {
+        error_at(ident->str, "存在しないmemberです");
+      }
+      m->type = m->member->type;
+      node = m;
+    } else {
+      return node;
+    }
   }
-
-  return node;
 }
 
 Node *lvar(Token *tok) {

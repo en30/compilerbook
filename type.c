@@ -53,6 +53,13 @@ void *set_member(Type *t, Member *member) {
   }
 }
 
+Member *find_member(Type *t, Token *ident) {
+  for (Member *m = t->member; m; m = m->next) {
+    if (token_equal(m->name, ident)) return m;
+  }
+  return NULL;
+}
+
 Type *type_add(Type *lhs, Type *rhs) {
   if (is_effectively_pointer(lhs) && is_int(rhs))
     return new_pointer_to(lhs->ptr_to);
@@ -82,5 +89,12 @@ bool is_int(Type *type) { return type->ty == TY_INT; }
 int type_address_size(Type *type) {
   if (type->ty == TY_ARRAY)
     return type->array_size * type_address_size(type->ptr_to);
+  if (type->ty == TY_STRUCT) {
+    int s = 0;
+    for (Member *m = type->member; m; m = m->next) {
+      s += type_address_size(m->type);
+    }
+    return s;
+  }
   return 8;
 }

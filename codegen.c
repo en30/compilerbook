@@ -8,6 +8,8 @@ int id() {
 }
 
 void load_var(Node *node) {
+  if (node->type->ty == TY_ARRAY) return;
+
   printf("  pop rax\n");
   if (type_size(node->type) == 1) {
     printf("  movsx rax, BYTE PTR [rax]\n");
@@ -33,6 +35,12 @@ void gen_lval(Node *node) {
       printf("  sub rax, %d\n", node->lvar->offset);
       printf("  push rax\n");
       return;
+    case ND_MEMBER:
+      gen_lval(node->lhs);
+      printf("  pop rax\n");
+      printf("  add rax, %d\n", node->member->offset);
+      printf("  push rax\n");
+      return;
     default:
       error("代入の左辺値が変数ではありません");
       return;
@@ -47,11 +55,11 @@ void gen(Node *node) {
       return;
     case ND_GVAR:
       gen_lval(node);
-      if (node->type->ty != TY_ARRAY) load_var(node);
+      load_var(node);
       return;
     case ND_LVAR:
       gen_lval(node);
-      if (node->type->ty != TY_ARRAY) load_var(node);
+      load_var(node);
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
@@ -225,6 +233,10 @@ void gen(Node *node) {
       return;
     case ND_DEREF:
       gen(node->lhs);
+      load_var(node);
+      return;
+    case ND_MEMBER:
+      gen_lval(node);
       load_var(node);
       return;
   }

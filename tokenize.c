@@ -150,7 +150,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (strchr("+-*/()<>;={},&[]", *p)) {
+    if (strchr("+-*/()<>;={},&[].", *p)) {
       cur = new_token(TK_PUNCT, cur, p++, 1);
       continue;
     }
@@ -232,3 +232,8 @@ Token *expect(TokenKind kind) {
 bool peek(TokenKind kind) { return token->kind == kind; }
 
 int token_value(Token *token) { return token->val; }
+
+bool token_equal(Token *lhs, Token *rhs) {
+  return lhs->kind == rhs->kind && lhs->len == rhs->len &&
+         !memcmp(lhs->str, rhs->str, lhs->len);
+}

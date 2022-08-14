@@ -47,6 +47,7 @@ typedef enum {
   ND_ADDR,
   ND_DEREF,
   ND_INITLIST,
+  ND_MEMBER,
 } NodeKind;
 
 typedef enum {
@@ -85,6 +86,7 @@ Token *consume(TokenKind kind);
 Token *expect(TokenKind kind);
 bool peek(TokenKind kind);
 int token_value(Token *token);
+bool token_equal(Token *lhs, Token *rhs);
 
 struct Node {
   NodeKind kind;
@@ -111,6 +113,8 @@ struct Node {
   LVar *locals;       // ND_FUNC
 
   Type *type;
+
+  Member *member;  // ND_MEMBER
 };
 
 struct GVar {
@@ -156,6 +160,7 @@ extern int UNK_ARRAY_SIZE;
 Type *new_pointer_to(Type *target);
 Type *new_array_of(Type *target, size_t array_size);
 Type *new_struct(Token *tok);
+Member *find_member(Type *strct, Token *ident);
 void *set_member(Type *strct, Member *member);
 Type *new_anonymous_struct();
 bool is_int(Type *type);
