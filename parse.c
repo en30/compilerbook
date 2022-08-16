@@ -26,6 +26,9 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     case ND_DEREF:
       node->type = node->lhs->type->ptr_to;
       if (!node->type) error_at(token->str, "dereferenceできません");
+      if (node->type->ty == TY_VOID) {
+        error_at(token->str, "void pointerはdereferenceできません");
+      }
       break;
     case ND_ADD:
       // int + ptr -> ptr + int
@@ -42,6 +45,8 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
       node->type = new_array_of(&int_type, 0);
       break;
     case ND_ASSIGN:
+      if (node->rhs->type->ty == TY_VOID)
+        error_at(token->str, "voidを値として使うことはできません");
       node->type = node->lhs->type;
       break;
     case ND_ADDR:
@@ -83,6 +88,8 @@ GVar *find_gvar(Token *tok) {
 }
 
 GVar *def_gvar(Token *tok, Type *type) {
+  if (type->ty == TY_VOID) error_at(tok->str, "void方の変数は宣言できません");
+
   GVar *gvar = find_gvar(tok);
   if (gvar) return NULL;
 
@@ -120,6 +127,8 @@ LVar *find_lvar(Token *tok) {
 }
 
 void def_lvar(Token *tok, Type *type) {
+  if (type->ty == TY_VOID) error_at(tok->str, "void方の変数は宣言できません");
+
   LVar *lvar = find_lvar(tok);
   if (lvar) error_at(tok->str, "同名のローカル変数が既に定義済みです");
 
@@ -164,7 +173,7 @@ primary          = num
                  | str
                  | ident ( "(" (expr ("," expr)*)? ")" )?
                  | "(" expr ")"
-typespec         = ("int" | "char" | struct_spec) "*"*
+typespec         = ("int" | "char" | "void" | struct_spec) "*"*
 struct_spec      = "struct" (
                   identifier
                   | identifier? "{" struct_decl_list "}"
@@ -216,6 +225,8 @@ Type *consume_typespec_pre() {
     return &char_type;
   } else if (consume(TK_INT)) {
     return &int_type;
+  } else if (consume(TK_VOID)) {
+    return &void_type;
   } else if (peek(TK_STRUCT)) {
     return struct_spec();
   }

@@ -100,10 +100,11 @@ Token *tokenize(char *p) {
   head.next = NULL;
   Token *cur = &head;
   static char *kw[] = {
-      "sizeof", "char", "int", "return", "if", "else", "while", "for", "struct",
+      "sizeof", "void", "char",  "int", "return",
+      "if",     "else", "while", "for", "struct",
   };
-  static int kind[] = {TK_SIZEOF, TK_CHAR,  TK_INT, TK_RETURN, TK_IF,
-                       TK_ELSE,   TK_WHILE, TK_FOR, TK_STRUCT};
+  static int kind[] = {TK_SIZEOF, TK_VOID, TK_CHAR,  TK_INT, TK_RETURN,
+                       TK_IF,     TK_ELSE, TK_WHILE, TK_FOR, TK_STRUCT};
 
   static char *puncts[] = {"<=", ">=", "==", "!=", "->", "+", "-", "*",
                            "/",  "(",  ")",  "<",  ">",  ";", "=", "{",

@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+Type void_type = {.ty = TY_VOID, .size = 1};
 Type int_type = {.ty = TY_INT, .size = 4};
 Type char_type = {.ty = TY_CHAR, .size = 1};
 

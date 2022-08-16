@@ -15,6 +15,7 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_EOF,
+  TK_VOID,
   TK_CHAR,
   TK_INT,
   TK_SIZEOF,
@@ -51,6 +52,7 @@ typedef enum {
 } NodeKind;
 
 typedef enum {
+  TY_VOID,
   TY_CHAR,
   TY_INT,
   TY_PTR,
@@ -154,6 +156,7 @@ struct Member {
   Member *next;
 };
 
+extern Type void_type;
 extern Type int_type;
 extern Type char_type;
 extern int UNK_ARRAY_SIZE;
