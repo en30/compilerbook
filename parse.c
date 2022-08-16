@@ -59,6 +59,16 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
+Node *new_member_node(Node *node, Token *ident) {
+  Node *m = new_node(ND_MEMBER, node, NULL);
+  m->member = find_member(node->type, ident);
+  if (!m->member) {
+    error_at(ident->str, "存在しないmemberです");
+  }
+  m->type = m->member->type;
+  return m;
+}
+
 Node *find_func(Token *tok) {
   for (Node *n = program_head.next; n; n = n->next)
     if (n->len == tok->len && !memcmp(tok->str, n->fname, n->len)) return n;
@@ -148,6 +158,7 @@ unary            = "sizeof" unary
                  | primary (
                     "[" expr "]"
                     | "." ident
+                    | "->" ident
                    )*
 primary          = num
                  | str
@@ -657,14 +668,11 @@ Node *unary() {
       node = subscript_operator(node, expr());
       expect_punct("]");
     } else if (consume_punct(".")) {
-      Node *m = new_node(ND_MEMBER, node, NULL);
       Token *ident = expect(TK_IDENT);
-      m->member = find_member(node->type, ident);
-      if (!m->member) {
-        error_at(ident->str, "存在しないmemberです");
-      }
-      m->type = m->member->type;
-      node = m;
+      node = new_member_node(node, ident);
+    } else if (consume_punct("->")) {
+      Token *ident = expect(TK_IDENT);
+      node = new_member_node(new_node(ND_DEREF, node, NULL), ident);
     } else {
       return node;
     }

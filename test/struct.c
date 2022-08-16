@@ -40,6 +40,9 @@ int main() {
   ASSERT(99, es[0].name[2]);
   ASSERT(0, es[0].name[3]);
 
+  struct Elem *y = &es[0];
+  ASSERT(97, y->name[0]);
+
   printf("\nOK\n");
   return 0;
 }
