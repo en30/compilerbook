@@ -105,6 +105,10 @@ Token *tokenize(char *p) {
   static int kind[] = {TK_SIZEOF, TK_CHAR,  TK_INT, TK_RETURN, TK_IF,
                        TK_ELSE,   TK_WHILE, TK_FOR, TK_STRUCT};
 
+  static char *puncts[] = {"<=", ">=", "==", "!=", "+", "-", "*",
+                           "/",  "(",  ")",  "<",  ">", ";", "=",
+                           "{",  "}",  ",",  "&",  "[", "]", "."};
+
   while (*p) {
     if (isspace(*p)) {
       p++;
@@ -143,16 +147,13 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (startswith(p, "<=") || startswith(p, ">=") || startswith(p, "==") ||
-        startswith(p, "!=")) {
-      cur = new_token(TK_PUNCT, cur, p, 2);
-      p += 2;
-      continue;
-    }
-
-    if (strchr("+-*/()<>;={},&[].", *p)) {
-      cur = new_token(TK_PUNCT, cur, p++, 1);
-      continue;
+    for (int i = 0; i < sizeof(puncts) / sizeof(puncts[0]); i++) {
+      int l = strlen(puncts[i]);
+      if (strncmp(p, puncts[i], l) == 0) {
+        cur = new_token(TK_PUNCT, cur, p, l);
+        p += l;
+        goto next;
+      }
     }
 
     for (int i = 0; i < sizeof(kind) / sizeof(kind[0]); i++) {
