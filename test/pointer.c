@@ -2,7 +2,7 @@
 
 int f_0() {
   int x;
-  int y;
+  int *y;
   x = 3;
   y = &x;
   return *y;

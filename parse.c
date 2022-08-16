@@ -25,7 +25,7 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   switch (node->kind) {
     case ND_DEREF:
       node->type = node->lhs->type->ptr_to;
-      if (!node->type) node->type = node->lhs->type;
+      if (!node->type) error_at(token->str, "dereferenceできません");
       break;
     case ND_ADD:
       // int + ptr -> ptr + int
@@ -42,7 +42,7 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
       node->type = new_array_of(&int_type, 0);
       break;
     case ND_ASSIGN:
-      node->type = node->lhs->type->ptr_to;
+      node->type = node->lhs->type;
       break;
     case ND_ADDR:
       if (node->lhs->type->ty == TY_ARRAY) {
