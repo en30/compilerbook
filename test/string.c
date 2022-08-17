@@ -36,6 +36,15 @@ int main() {
   ASSERT(104, "\1500"[0]);
   ASSERT(3, sizeof("\1500"));
 
+  ASSERT(0, "\x00"[0]);
+  ASSERT(2, sizeof("\x00"));
+  ASSERT(119, "\x77"[0]);
+  ASSERT(2, sizeof("\x77"));
+  ASSERT(-91, "\xA5"[0]);
+  ASSERT(2, sizeof("\xA5"));
+  ASSERT(-1, "\x00ff"[0]);
+  ASSERT(2, sizeof("\x00ff"));
+
   printf("\nOK\n");
   return 0;
 }

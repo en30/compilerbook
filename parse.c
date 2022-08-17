@@ -109,7 +109,14 @@ char *new_literal_string_name() {
   return buf;
 }
 
-static char read_escaped_char(char **new_pos, char *p) {
+static int from_hex(char c) {
+  if ('0' <= c && c <= '9') return c - '0';
+  if ('a' <= c && c <= 'f') return c - 'a' + 10;
+  return c - 'A' + 10;
+}
+
+static unsigned char read_escaped_char(char **new_pos, char *p) {
+  // octal sequence
   if ('0' <= *p && *p <= '7') {
     int x = 0;
     x += *p - '0';
@@ -122,7 +129,22 @@ static char read_escaped_char(char **new_pos, char *p) {
     }
     if (x > 255) error_at(*new_pos, "octal escape sequence out of range");
     *new_pos = p;
-    return (char)x;
+    return x;
+  }
+
+  // hex sequence
+  if (*p == 'x') {
+    p++;
+    if (!isxdigit(*p)) error_at(p, "invalid hex escape sequence");
+    int x = 0;
+    while (isxdigit(*p)) {
+      x <<= 4;
+      x += from_hex(*p);
+      p++;
+    }
+    if (x > 255) error_at(*new_pos, "hex escape sequence out of range");
+    *new_pos = p;
+    return x;
   }
 
   *new_pos = p + 1;
