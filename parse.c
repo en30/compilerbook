@@ -109,13 +109,54 @@ char *new_literal_string_name() {
   return buf;
 }
 
+static char read_escaped_char(char p) {
+  switch (p) {
+    case 'a':
+      return '\a';
+    case 'b':
+      return '\b';
+    case 't':
+      return '\t';
+    case 'n':
+      return '\n';
+    case 'v':
+      return '\v';
+    case 'f':
+      return '\f';
+    case 'r':
+      return '\r';
+    // [GNU] \e for the ASCII escape character is a GNU C extension.
+    case 'e':
+      return 27;
+    default:
+      return p;
+  }
+}
+
+char *read_as_string(char *p, int len) {
+  int nc = 0;
+  for (int i = 0; i < len; i++) {
+    if (p[i] == '\\') continue;
+    nc++;
+  }
+
+  char *buf = calloc(1, nc + 1);
+  for (int i = 0, j = 0; i < len; i++) {
+    if (p[i] == '\\') {
+      buf[j++] = read_escaped_char(p[++i]);
+    } else {
+      buf[j++] = p[i];
+    }
+  }
+  return buf;
+}
+
 GVar *new_string_literal(Token *tok) {
   GVar *gvar = calloc(1, sizeof(GVar));
   gvar->name = new_literal_string_name();
   gvar->len = strlen(gvar->name);
-  gvar->type = new_array_of(&char_type, tok->len + 1);
-  gvar->init_str = calloc(1, tok->len + 1);
-  strncpy(gvar->init_str, tok->str, tok->len);
+  gvar->init_str = read_as_string(tok->str, tok->len);
+  gvar->type = new_array_of(&char_type, strlen(gvar->init_str) + 1);
   return gvar;
 }
 

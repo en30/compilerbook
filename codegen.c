@@ -7,6 +7,13 @@ int id() {
   return i++;
 }
 
+void print_bytes(char *s) {
+  for (char *p = s;; p++) {
+    printf("  .byte %#x\n", *p);
+    if (*p == '\0') break;
+  }
+}
+
 void load_var(Node *node) {
   if (node->type->ty == TY_ARRAY) return;
 
@@ -169,13 +176,11 @@ void gen(Node *node) {
       printf(".data\n");
       printf("%.*s:\n", node->gvar->len, node->gvar->name);
       if (node->gvar->init_str) {  // string literal
-        printf("  .string \"%s\"\n", node->gvar->init_str);
+        print_bytes(node->gvar->init_str);
       } else if (node->lhs->kind == ND_NUM) {
         printf("  .long %d\n", node->lhs->val);
       } else if (node->lhs->kind == ND_GVAR) {
-        if (node->lhs->gvar->init_str) {
-          printf("  .string \"%s\"\n", node->lhs->gvar->init_str);
-        }
+        print_bytes(node->lhs->gvar->init_str);
       } else if (node->lhs->kind == ND_ADDR) {
         GVar *g = node->lhs->lhs->gvar;
         printf("  .quad %.*s\n", g->len, g->name);
