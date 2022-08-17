@@ -109,8 +109,25 @@ char *new_literal_string_name() {
   return buf;
 }
 
-static char read_escaped_char(char p) {
-  switch (p) {
+static char read_escaped_char(char **new_pos, char *p) {
+  if ('0' <= *p && *p <= '7') {
+    int x = 0;
+    x += *p - '0';
+    p++;
+    for (int i = 0; i < 2; i++) {
+      if (*p < '0' || '7' < *p) break;
+      x <<= 3;
+      x += *p - '0';
+      p++;
+    }
+    if (x > 255) error_at(*new_pos, "octal escape sequence out of range");
+    *new_pos = p;
+    return (char)x;
+  }
+
+  *new_pos = p + 1;
+
+  switch (*p) {
     case 'a':
       return '\a';
     case 'b':
@@ -129,23 +146,28 @@ static char read_escaped_char(char p) {
     case 'e':
       return 27;
     default:
-      return p;
+      return *p;
   }
 }
 
-char *read_as_string(char *p, int len) {
-  int nc = 0;
-  for (int i = 0; i < len; i++) {
-    if (p[i] == '\\') continue;
-    nc++;
+char *read_as_string(char *p, int len, int *buflen) {
+  *buflen = 1;
+  for (char *q = p; q < p + len;) {
+    if (*q == '\\') {
+      read_escaped_char(&q, q + 1);
+    } else {
+      q++;
+    }
+    (*buflen)++;
   }
 
-  char *buf = calloc(1, nc + 1);
-  for (int i = 0, j = 0; i < len; i++) {
-    if (p[i] == '\\') {
-      buf[j++] = read_escaped_char(p[++i]);
+  char *buf = calloc(1, *buflen);
+  int i = 0;
+  for (char *q = p; q < p + len;) {
+    if (*q == '\\') {
+      buf[i++] = read_escaped_char(&q, q + 1);
     } else {
-      buf[j++] = p[i];
+      buf[i++] = *q++;
     }
   }
   return buf;
@@ -155,8 +177,10 @@ GVar *new_string_literal(Token *tok) {
   GVar *gvar = calloc(1, sizeof(GVar));
   gvar->name = new_literal_string_name();
   gvar->len = strlen(gvar->name);
-  gvar->init_str = read_as_string(tok->str, tok->len);
-  gvar->type = new_array_of(&char_type, strlen(gvar->init_str) + 1);
+  // strlenだとsizeof("\0")が1になってしまうので
+  int len;
+  gvar->init_str = read_as_string(tok->str, tok->len, &len);
+  gvar->type = new_array_of(&char_type, len);
   return gvar;
 }
 

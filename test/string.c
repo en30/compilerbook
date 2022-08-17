@@ -27,6 +27,15 @@ int main() {
   ASSERT(10, "\ax\ny"[2]);
   ASSERT(121, "\ax\ny"[3]);
 
+  ASSERT(0, "\0"[0]);
+  ASSERT(2, sizeof("\0"));
+  ASSERT(16, "\20"[0]);
+  ASSERT(2, sizeof("\20"));
+  ASSERT(65, "\101"[0]);
+  ASSERT(2, sizeof("\101"));
+  ASSERT(104, "\1500"[0]);
+  ASSERT(3, sizeof("\1500"));
+
   printf("\nOK\n");
   return 0;
 }
