@@ -176,6 +176,7 @@ void type_assign(Type *lhs, Type *rhs);
 Type *type_add(Type *lhs, Type *rhs);
 Type *type_sub(Type *lhs, Type *rhs);
 
+int read_escaped_char(char **new_pos, char *p);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 

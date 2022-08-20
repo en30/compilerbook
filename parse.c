@@ -115,7 +115,7 @@ static int from_hex(char c) {
   return c - 'A' + 10;
 }
 
-static unsigned char read_escaped_char(char **new_pos, char *p) {
+int read_escaped_char(char **new_pos, char *p) {
   // octal sequence
   if ('0' <= *p && *p <= '7') {
     int x = 0;

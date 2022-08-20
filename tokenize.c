@@ -148,6 +148,25 @@ Token *tokenize(char *p) {
       continue;
     }
 
+    if (*p == '\'') {
+      cur = new_token(TK_NUM, cur, ++p, 0);
+      if (*p == '\n' || *p == '\0')
+        error_at(p, "文字リテラルが閉じられていません");
+
+      char c;
+      if (*p == '\\') {
+        c = read_escaped_char(&p, p + 1);
+      } else {
+        c = *p++;
+      }
+      cur->val = c;
+      cur->len = p - cur->str;
+
+      if (*p++ != '\'') error_at(p, "文字リテラルが閉じられていません");
+
+      continue;
+    }
+
     for (int i = 0; i < sizeof(puncts) / sizeof(puncts[0]); i++) {
       int l = strlen(puncts[i]);
       if (strncmp(p, puncts[i], l) == 0) {
