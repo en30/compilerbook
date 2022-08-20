@@ -5,8 +5,8 @@ GVar *globals;
 LVar *locals;
 Node program_head;
 Node *strings;
-Type structs_head = {};
-Type *structs = &structs_head;
+
+static Scope *current_scope;
 
 Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
@@ -206,10 +206,27 @@ GVar *new_string_literal(Token *tok) {
   return gvar;
 }
 
+void push_scope() {
+  Scope *s = calloc(1, sizeof(Scope));
+  s->next = current_scope;
+  current_scope = s;
+}
+
+void pop_scope() { current_scope = current_scope->next; }
+
+LVar *find_scope_lvar(Scope *scope, Token *tok) {
+  for (ScopeVar *var = scope->vars; var; var = var->next)
+    if (var->lvar->len == tok->len &&
+        !memcmp(tok->str, var->lvar->name, var->lvar->len))
+      return var->lvar;
+  return NULL;
+}
+
 LVar *find_lvar(Token *tok) {
-  for (LVar *var = locals; var; var = var->next)
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
-      return var;
+  for (Scope *s = current_scope; s; s = s->next) {
+    LVar *v = find_scope_lvar(s, tok);
+    if (v) return v;
+  }
   return NULL;
 }
 
@@ -217,7 +234,8 @@ void def_lvar(Token *tok, Type *type) {
   if (type->ty == TY_VOID) error_at(tok->str, "void方の変数は宣言できません");
 
   LVar *lvar = find_lvar(tok);
-  if (lvar) error_at(tok->str, "同名のローカル変数が既に定義済みです");
+  if (lvar && lvar == find_scope_lvar(current_scope, tok))
+    error_at(tok->str, "同名のローカル変数が既に定義済みです");
 
   lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
@@ -226,6 +244,11 @@ void def_lvar(Token *tok, Type *type) {
   lvar->offset = (locals ? locals->offset : 0) + type_address_size(type);
   lvar->type = type;
   locals = lvar;
+
+  ScopeVar *sv = calloc(1, sizeof(ScopeVar));
+  sv->lvar = lvar;
+  sv->next = current_scope->vars;
+  current_scope->vars = sv;
 }
 
 /*
@@ -292,17 +315,25 @@ Type *def_struct(Token *tok) {
   if (!tok) return new_anonymous_struct();
 
   Type *t = new_struct(tok);
-  structs->next = t;
-  structs = structs->next;
+  t->next = current_scope->structs;
+  current_scope->structs = t;
   return t;
+}
+
+Type *find_scope_struct(Scope *scope, Token *tok) {
+  for (Type *t = scope->structs; t; t = t->next)
+    if (t->name->len == tok->len && !memcmp(tok->str, t->name->str, tok->len))
+      return t;
+  return NULL;
 }
 
 Type *find_struct(Token *tok) {
   if (!tok) return NULL;
 
-  for (Type *t = structs_head.next; t; t = t->next)
-    if (t->name->len == tok->len && !memcmp(tok->str, t->name->str, tok->len))
-      return t;
+  for (Scope *s = current_scope; s; s = s->next) {
+    Type *t = find_scope_struct(s, tok);
+    if (t) return t;
+  }
   return NULL;
 }
 
@@ -330,7 +361,8 @@ Type *struct_spec() {
     return t;
   }
 
-  if (t) error_at(ident->str, "既にstructが定義済みです");
+  if (t && t == find_scope_struct(current_scope, ident))
+    error_at(ident->str, "既にstructが定義済みです");
 
   t = def_struct(ident);
   Member head = {};
@@ -438,6 +470,7 @@ Node *func() {
   expect_varspec(&node->return_type, &tok);
   node->fname = tok->str;
   node->len = tok->len;
+  push_scope();
   locals = NULL;
 
   expect_punct("(");
@@ -463,6 +496,8 @@ Node *func() {
 
   node->fbody = block();
   node->locals = locals;
+  pop_scope();
+
   return node;
 }
 
@@ -571,6 +606,7 @@ Node *initlist() {
 }
 
 Node *block() {
+  push_scope();
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_BLOCK;
 
@@ -585,6 +621,7 @@ Node *block() {
     }
     while (current->next) current = current->next;
   }
+  pop_scope();
   return node;
 }
 
@@ -869,4 +906,7 @@ Node *primary() {
   return new_node_num(token_value(expect(TK_NUM)));
 }
 
-Node *parse() { return program(); }
+Node *parse() {
+  push_scope();
+  return program();
+}

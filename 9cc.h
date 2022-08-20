@@ -66,6 +66,10 @@ typedef struct Node Node;
 struct Node;
 typedef struct GVar GVar;
 struct GVar;
+typedef struct Scope Scope;
+struct Scope;
+typedef struct ScopeVar ScopeVar;
+struct ScopeVar;
 typedef struct LVar LVar;
 struct LVar;
 typedef struct Type Type;
@@ -127,6 +131,18 @@ struct GVar {
   bool initialized;
   char *init_str;
   int init_int;
+};
+
+struct Scope {
+  ScopeVar *vars;
+  Type *structs;
+
+  Scope *next;
+};
+
+struct ScopeVar {
+  ScopeVar *next;
+  LVar *lvar;
 };
 
 struct LVar {
