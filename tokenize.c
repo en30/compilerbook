@@ -106,9 +106,9 @@ Token *tokenize(char *p) {
   static int kind[] = {TK_SIZEOF, TK_VOID, TK_CHAR,  TK_INT, TK_RETURN,
                        TK_IF,     TK_ELSE, TK_WHILE, TK_FOR, TK_STRUCT};
 
-  static char *puncts[] = {"<=", ">=", "==", "!=", "->", "+", "-", "*",
-                           "/",  "(",  ")",  "<",  ">",  ";", "=", "{",
-                           "}",  ",",  "&",  "[",  "]",  "."};
+  static char *puncts[] = {
+      "<=", ">=", "==", "!=", "->", "+=", "-=", "*=", "/=", "+", "-", "*", "/",
+      "(",  ")",  "<",  ">",  ";",  "=",  "{",  "}",  ",",  "&", "[", "]", "."};
 
   while (*p) {
     if (isspace(*p)) {

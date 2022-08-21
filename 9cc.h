@@ -108,7 +108,8 @@ struct Node {
   Node *then;  // if, while, for
   Node *els;   // if
 
-  Node *next;  // block, ND_FUNCALL
+  Node *next;   // ND_FUNCALL
+  Node *stmts;  // block
 
   char *fname;  // ND_FUNCALL
   int len;      // ND_FUNCALL

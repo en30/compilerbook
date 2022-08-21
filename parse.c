@@ -223,6 +223,8 @@ LVar *find_scope_lvar(Scope *scope, Token *tok) {
 }
 
 LVar *find_lvar(Token *tok) {
+  if (!tok) return NULL;
+
   for (Scope *s = current_scope; s; s = s->next) {
     LVar *v = find_scope_lvar(s, tok);
     if (v) return v;
@@ -230,7 +232,7 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
-void def_lvar(Token *tok, Type *type) {
+LVar *def_lvar(Token *tok, Type *type) {
   if (type->ty == TY_VOID) error_at(tok->str, "void方の変数は宣言できません");
 
   LVar *lvar = find_lvar(tok);
@@ -239,8 +241,10 @@ void def_lvar(Token *tok, Type *type) {
 
   lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
-  lvar->name = tok->str;
-  lvar->len = tok->len;
+  if (tok) {
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+  }
   lvar->offset = (locals ? locals->offset : 0) + type_address_size(type);
   lvar->type = type;
   locals = lvar;
@@ -249,6 +253,8 @@ void def_lvar(Token *tok, Type *type) {
   sv->lvar = lvar;
   sv->next = current_scope->vars;
   current_scope->vars = sv;
+
+  return lvar;
 }
 
 /*
@@ -267,7 +273,8 @@ stmt             = expr ";"
 block            = "{" (declaration | stmt)* "}"
 declaration      = varspec ("=" initializer)? ";"
 expr             = assign
-assign           = equality ("=" assign)?
+assign           = equality (assign-op assign)?
+assign_op        = "=" | "+=" | "-=" | "*=" | "/="
 equality         = relational ("==" relational | "!=" relational)*
 relational       = add ("<" add | "<=" add | ">" add | ">=" add)*
 add              = mul ("+" mul | "-" mul)*
@@ -611,7 +618,8 @@ Node *block() {
   node->kind = ND_BLOCK;
 
   expect_punct("{");
-  Node *current = node;
+  Node head = {};
+  Node *current = &head;
   while (!consume_punct("}")) {
     Node *node = declaration();
     if (node) {
@@ -621,6 +629,7 @@ Node *block() {
     }
     while (current->next) current = current->next;
   }
+  node->stmts = head.next;
   pop_scope();
   return node;
 }
@@ -720,10 +729,35 @@ Node *stmt() {
 
 Node *expr() { return assign(); }
 
+// A op= B -> { tmp = B; A = A op tmp; }
+Node *compound_assign(NodeKind op, Node *lhs, Node *rhs) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_BLOCK;
+  node->type = lhs->type;
+
+  LVar *lvar = def_lvar(NULL, lhs->type);
+  Node *tmp = calloc(1, sizeof(Node));
+  tmp->kind = ND_LVAR;
+  tmp->lvar = lvar;
+  tmp->type = lvar->type;
+
+  node->stmts = new_node(ND_ASSIGN, tmp, rhs);
+  node->stmts->next = new_node(ND_ASSIGN, lhs, new_node(op, lhs, tmp));
+  return node;
+}
+
 Node *assign() {
   Node *node = equality();
   if (consume_punct("=")) {
     node = new_node(ND_ASSIGN, node, assign());
+  } else if (consume_punct("+=")) {
+    node = compound_assign(ND_ADD, node, assign());
+  } else if (consume_punct("-=")) {
+    node = compound_assign(ND_SUB, node, assign());
+  } else if (consume_punct("*=")) {
+    node = compound_assign(ND_MUL, node, assign());
+  } else if (consume_punct("/=")) {
+    node = compound_assign(ND_DIV, node, assign());
   }
   return node;
 }

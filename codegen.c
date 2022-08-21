@@ -129,7 +129,7 @@ void gen(Node *node) {
       printf("  push 0\n");
       return;
     case ND_BLOCK:
-      for (Node *n = node->next; n; n = n->next) {
+      for (Node *n = node->stmts; n; n = n->next) {
         gen(n);
         if (n->next) printf("  pop rax\n");
       }
