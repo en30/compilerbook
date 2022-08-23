@@ -75,6 +75,12 @@ int main() {
   ASSERT(1, f_8());
   ASSERT(2, f_9());
 
+  int i = 0;
+  for (int j = 0; j < 5; j = j + 1) i += j;
+  ASSERT(10, i);
+  for (int i = 0; i < 5; i = i + 1) i;
+  ASSERT(10, i);
+
   printf("\nOK\n");
   return 0;
 }

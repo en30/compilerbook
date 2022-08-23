@@ -268,7 +268,7 @@ stmt             = expr ";"
                  | block
                  | "if" "(" expr ")" stmt ("else" stmt)?
                  | "while" "(" expr ")" stmt
-                 | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                 | "for" "(" (declaration | expr? ";") expr? ";" expr? ")" stmt
                  | "return" expr ";"
 block            = "{" (declaration | stmt)* "}"
 declaration      = varspec ("=" initializer)? ";"
@@ -701,7 +701,10 @@ Node *stmt() {
     node = calloc(1, sizeof(Node));
     node->kind = ND_FOR;
     expect_punct("(");
-    if (!consume_punct(";")) {
+    push_scope();
+
+    node->init = declaration();
+    if (!node->init && !consume_punct(";")) {
       node->init = expr();
       expect_punct(";");
     }
@@ -714,6 +717,7 @@ Node *stmt() {
       expect_punct(")");
     }
     node->then = stmt();
+    pop_scope();
   } else if (consume(TK_RETURN)) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
